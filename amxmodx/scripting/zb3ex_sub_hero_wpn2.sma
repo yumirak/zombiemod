@@ -157,7 +157,6 @@ public plugin_init()
 {
 	register_plugin("[Zombie: The Hero] Sub-Plugin: Hero Weapons", "2.0", "Dias")
 	
-	/*
 	register_event("CurWeapon", "Event_CheckWeapon", "be", "1=1")
 
 	register_forward(FM_UpdateClientData, "fw_UpdateClientData_Post", 1)	
@@ -181,7 +180,7 @@ public plugin_init()
 	RegisterHam(Ham_Item_PostFrame, weapon_quadbarrel, "fw_PostFrame_QuadBarrel")
 	RegisterHam(Ham_Item_AddToPlayer, weapon_quadbarrel, "fw_AddToPlayer_QuadBarrel_Post", 1)	
 	
-	g_MaxPlayers = get_maxplayers()*/
+	g_MaxPlayers = get_maxplayers()
 }
 
 public plugin_precache()
@@ -235,11 +234,10 @@ public zb3_user_spawned(id)
 
 public zb3_user_become_hero(id, hero_type)
 {
-	/*
 	zb3_supplybox_random_getitem(id, 1)
 	
 	if(hero_type == HERO_ANDREY) get_svdex(id)
-	if(hero_type == HERO_KATE) get_quadbarrel(id)*/
+	if(hero_type == HERO_KATE) get_quadbarrel(id)
 }
 
 public get_svdex(id)
