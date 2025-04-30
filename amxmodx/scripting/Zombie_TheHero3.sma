@@ -9,6 +9,7 @@
 #include <xs>
 
 // New
+#include <reapi>
 #include <zombie_thehero2>
 
 #define PLUGIN "Zombie: The Hero"
@@ -206,8 +207,6 @@ new g_CustomModelIndex[MAXPLAYERS+1]
 new Float:player_spawn_point[MAX_SPAWN_POINT][3]
 new player_spawn_point_count
 
-const m_szAnimExtention = 492
-
 enum
 {
 	OFFSET_AMMO_AWP = 377,
@@ -357,6 +356,12 @@ public plugin_init()
 		ArrayGetString(g_sky, get_random_array(g_sky), sky, 63)
 		set_cvar_string("sv_skyname", sky)
 	}
+	
+	// external bot mode detection
+	register_cvar("zp_delay", "20", FCVAR_PROTECTED)
+
+	// Block Round End
+	set_cvar_num("mp_round_infinite", 1)
 	
 	set_cvar_num("sv_skycolor_r", 0)
 	set_cvar_num("sv_skycolor_g", 0)
@@ -2375,8 +2380,6 @@ public set_user_zombie(id, attacker, Origin_Zombie, Respawn)
 		}
 	}
 	
-	set_pdata_string(id, m_szAnimExtention * 4, "knife", -1 , 20)
-	
 	// Fix "Dead" Atrib
 	set_scoreboard_attrib(id, 0)
 	
@@ -3319,13 +3322,9 @@ stock fm_cs_set_user_armor(client, armorvalue, CsArmorType:armortype)
 	
 	if( armortype != CS_ARMOR_NONE )
 	{
-		static ArmorType;
-		if(ArmorType || (ArmorType = get_user_msgid("ArmorType")) )
-		{
-			emessage_begin(MSG_ONE_UNRELIABLE, ArmorType, _, client);
-			ewrite_byte((armortype == CS_ARMOR_VESTHELM) ? 1 : 0);
-			emessage_end();
-		}
+		emessage_begin(MSG_ONE_UNRELIABLE, get_user_msgid("ArmorType"), _, client);
+		ewrite_byte((armortype == CS_ARMOR_VESTHELM) ? 1 : 0);
+		emessage_end();
 	}
 }
 
@@ -3495,6 +3494,7 @@ stock bool:TerminateRound({PlayerTeams,_}:team)
 	//EndRoundMessage(g_WinText[team], event)
 	
 	//RoundTerminating(winStatus, team == TEAM_START ? 3.0 : 5.0)
+	rg_round_end(team == TEAM_START ? 3.0 : 5.0, WINSTATUS_NONE, ROUND_NONE, g_WinText[team]);
 	PlaySound(0, sound)
 	
 	ExecuteForward(g_Forwards[FWD_GAME_END], g_fwResult, team)
