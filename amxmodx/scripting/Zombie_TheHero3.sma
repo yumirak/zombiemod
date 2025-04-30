@@ -11,11 +11,6 @@
 // New
 #include <zombie_thehero2>
 
-// Orpheu
-#include <orpheu>
-#include <orpheu_stocks>
-#include <orpheu_memory>
-
 #define PLUGIN "Zombie: The Hero"
 #define VERSION "3.0"
 #define AUTHOR "Dias"
@@ -89,7 +84,7 @@ const SECONDARY_WEAPONS_BIT_SUM = (1<<CSW_P228)|(1<<CSW_ELITE)|(1<<CSW_FIVESEVEN
 const NADE_WEAPONS_BIT_SUM = ((1<<CSW_HEGRENADE)|(1<<CSW_SMOKEGRENADE)|(1<<CSW_FLASHBANG))
 
 // Game Vars
-new bool:isLinuxServer, g_game_playable, g_MaxPlayers, g_TeamScore[PlayerTeams], m_iBlood[2], g_msgDeathMsg,
+new g_game_playable, g_MaxPlayers, g_TeamScore[PlayerTeams], m_iBlood[2], g_msgDeathMsg,
 g_Forwards[MAX_FORWARD], g_gamestart, g_endround, g_WinText[PlayerTeams][64], g_countdown_count, g_freeze_time,
 g_zombieclass_i, g_fwResult, g_classchoose_time, Float:g_Delay_ComeSound, g_SyncHud[MAX_SYNCHUD]
 new g_zombie[33], g_hero[33], g_hero_locked[33], g_iRespawning[33], g_sex[33], g_StartHealth[33], g_StartArmor[33],
@@ -211,38 +206,7 @@ new g_CustomModelIndex[MAXPLAYERS+1]
 new Float:player_spawn_point[MAX_SPAWN_POINT][3]
 new player_spawn_point_count
 
-// Orpheu
-new g_pGameRules
-new OrpheuHook:handleHookCheckMapConditions
-new OrpheuHook:handleHookCheckWinConditions
-new OrpheuHook:handleHookHasRoundTimeExpired
-new memoryIdentifierRoundTime[] = "roundTimeCheck"
-
 const m_szAnimExtention = 492
-
-// FM CStrike
-enum CsArmorType
-{
-	CS_ARMOR_NONE,
-	CS_ARMOR_KEVLAR,
-	CS_ARMOR_VESTHELM
-};
-
-enum CsInternalModel
-{
-	CS_DONTCHANGE, // 0
-	CS_CT_URBAN, // 1
-	CS_T_TERROR, // 2
-	CS_T_LEET, // 3
-	CS_T_ARCTIC, // 4
-	CS_CT_GSG9, // 5
-	CS_CT_GIGN, // 6
-	CS_CT_SAS, // 7
-	CS_T_GUERILLA, // 8
-	CS_CT_VIP, // 9
-	CZ_T_MILITIA, // 10
-	CZ_CT_SPETSNAZ // 11
-};
 
 enum
 {
@@ -355,11 +319,6 @@ public plugin_init()
 	RegisterHam(Ham_Player_ResetMaxSpeed, "player", "fw_PlayerResetMaxSpeed")
 	RegisterHam(Ham_AddPlayerItem, "player", "fw_AddPlayerItem")
 	
-	// Orpheus
-	//OrpheuRegisterHookFromObject(g_pGameRules,"FlPlayerFallDamage","CGameRules","fw_PlayerFallDamage")
-	//OrpheuRegisterHookFromObject(g_pGameRules,"IPointsForKill","CGameRules","fw_IPointsForKill")
-	
-	isLinuxServer = bool:is_linux_server()
 	g_MaxPlayers = get_maxplayers()
 	g_MsgScreenFade = get_user_msgid("ScreenFade")
 	g_Msg_SayText = get_user_msgid("SayText")
@@ -411,9 +370,6 @@ public plugin_init()
 	register_clcmd("drop", "cmd_drop")
 	
 	set_task(1.0, "Time_Change", _, _, _, "b")
-	
-	// Patch Round Infinity
-	PatchRoundInfinity()
 }
 
 public cmd_infect(id)
@@ -475,8 +431,6 @@ public cmd_block(id)
 
 public plugin_precache()
 {
-	OrpheuRegisterHook(OrpheuGetFunction("InstallGameRules"),"OnInstallGameRules", OrpheuHookPost)
-	
 	// Register Forward
 	g_BlockedObj_Forward = register_forward(FM_Spawn, "fw_BlockedObj_Spawn")
 	
@@ -690,10 +644,6 @@ public plugin_natives()
 	register_native("zb3_register_zombie_class", "native_register_zombie_class", 1)
 	register_native("zb3_set_zombie_class_data", "native_set_zombie_class_data", 1)
 }
-
-public plugin_end() UnPatchRoundInfinity()
-public plugin_pause() UnPatchRoundInfinity()
-public plugin_unpause() PatchRoundInfinity()
 
 public plugin_cfg()
 {
@@ -1588,25 +1538,6 @@ public fw_AddPlayerItem(id, iEnt)
 	}
 	
 	return HAM_IGNORED
-}
-
-public OrpheuHookReturn:fw_PlayerFallDamage(gameRules, id)
-{
-	if (!g_gamestart || !g_game_playable || g_endround)
-	{
-		OrpheuSetReturn(0.0)
-		return OrpheuSupercede
-	}
-	
-	return OrpheuIgnored
-}
-
-public OrpheuHookReturn:fw_IPointsForKill(gameRules, attacker, victim)
-{
-	if(is_user_connected(attacker) && !g_zombie[attacker])
-		return OrpheuSupercede
-	
-	return OrpheuIgnored
 }
 
 public set_team(id, {PlayerTeams,_}:team)
@@ -3563,88 +3494,12 @@ stock bool:TerminateRound({PlayerTeams,_}:team)
 	Event_RoundEnd()
 	//EndRoundMessage(g_WinText[team], event)
 	
-	RoundTerminating(winStatus, team == TEAM_START ? 3.0 : 5.0)
+	//RoundTerminating(winStatus, team == TEAM_START ? 3.0 : 5.0)
 	PlaySound(0, sound)
 	
 	ExecuteForward(g_Forwards[FWD_GAME_END], g_fwResult, team)
 	
 	return true;
-}
-
-stock RoundTerminating(const winStatus, const Float:delay)
-{
-	OrpheuMemorySetAtAddress(g_pGameRules, "m_iRoundWinStatus", 1, winStatus)
-	OrpheuMemorySetAtAddress(g_pGameRules, "m_fTeamCount", 1, get_gametime() + delay)
-	OrpheuMemorySetAtAddress(g_pGameRules, "m_bRoundTerminating", 1, true)
-}
-
-stock EndRoundMessage( const message[], const event, const bool:notifyAllPlugins = false )
-{
-	static OrpheuFunction:handleFuncEndRoundMessage;
-	
-	if (!handleFuncEndRoundMessage)
-		handleFuncEndRoundMessage = OrpheuGetFunction("EndRoundMessage")
-	
-	(notifyAllPlugins) ?
-	OrpheuCallSuper( handleFuncEndRoundMessage, message, event ) :
-	OrpheuCall( handleFuncEndRoundMessage, message, event );
-}
-
-// ========================== Orpheu ==============================
-// ================================================================
-public OnInstallGameRules()
-{
-	g_pGameRules = OrpheuGetReturn() 
-}
-
-public PatchRoundInfinity()
-{
-	handleHookCheckMapConditions = OrpheuRegisterHook( OrpheuGetFunction( "CheckMapConditions" , "CHalfLifeMultiplay" ), "CheckConditions" );
-	handleHookCheckWinConditions = OrpheuRegisterHook( OrpheuGetFunction( "CheckWinConditions" , "CHalfLifeMultiplay" ), "CheckConditions" );
-	
-	if ( isLinuxServer )
-	{
-		handleHookHasRoundTimeExpired = OrpheuRegisterHook( OrpheuGetFunction( "HasRoundTimeExpired" , "CHalfLifeMultiplay" ), "CheckConditions" );
-	}
-	else
-	{
-		BytesToReplace( memoryIdentifierRoundTime, { 0x90, 0x90, 0x90 } );
-	}
-}
-
-public UnPatchRoundInfinity()
-{
-	OrpheuUnregisterHook( handleHookCheckMapConditions );
-	OrpheuUnregisterHook( handleHookCheckWinConditions );
-	
-	if ( isLinuxServer )
-	{
-		OrpheuUnregisterHook( handleHookHasRoundTimeExpired );
-	}
-	else
-	{
-		BytesToReplace( memoryIdentifierRoundTime, { 0xF6, 0xC4, 0x41 } );
-	}
-}
-
-public OrpheuHookReturn:CheckConditions()
-{
-	OrpheuSetReturn(false)
-	return OrpheuSupercede
-}
-
-stock BytesToReplace ( identifier[], const bytes[], const bytesLength = sizeof bytes )
-{
-	new address;
-	OrpheuMemoryGet( identifier, address );
-	
-	for ( new i; i < bytesLength; i++)
-	{
-		OrpheuMemorySetAtAddress( address, "roundTimeCheck|dummy", 1, bytes[ i ], address );
-		address++;
-	}
-
-	server_cmd( "sv_restart 1" );
 }
 
 // ========================= DATA LOADER ==========================
