@@ -62,6 +62,19 @@ enum
 	SYCHUDD_EFFECTKILLER
 }
 
+enum
+{
+	INFECT_VICTIM = 0,
+	INFECT_RESPAWN,
+	INFECT_CHANGECLASS
+}
+
+enum
+{
+	FWD_SUPPLY_ITEM_GIVE = 0,
+	FWD_SUPPLY_AMMO_GIVE
+}
+
 // Natives
 native zb3_infect(id, attacker, origin_zombie, respawn); // Infect a Player
 

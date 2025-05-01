@@ -2421,9 +2421,7 @@ public set_user_zombie(id, attacker, Origin_Zombie, Respawn)
 			ExecuteForward(g_Forwards[FWD_USER_CHANGE_CLASS], g_fwResult, id, g_zombie_class[id], classid)
 			
 			g_zombie_class[id] = classid
-			set_zombie_class(id, g_zombie_class[id])
-
-			ExecuteForward(g_Forwards[FWD_USER_INFECT], g_fwResult, id, -1, 0)	
+			set_zombie_class(id, g_zombie_class[id])	
 		}
 	}
 	
@@ -2477,7 +2475,7 @@ public set_user_zombie(id, attacker, Origin_Zombie, Respawn)
 	ArrayGetString(g_zombie_type[id] == ZOMBIE_HOST ? zombie_model_host : zombie_model_origin, g_zombie_class[id], PlayerModel, sizeof(PlayerModel))
 	set_model(id, PlayerModel)
 	
-	ExecuteForward(g_Forwards[FWD_USER_INFECT], g_fwResult, id, attacker, 1)
+	ExecuteForward(g_Forwards[FWD_USER_INFECT], g_fwResult, id, attacker, Respawn ? INFECT_RESPAWN : INFECT_VICTIM)
 
 	gameplay_check()
 }
@@ -2594,7 +2592,7 @@ public menu_selectclass_handle(id, menu, item)
 		g_zombie_class[id] = classid
 		set_zombie_class(id, g_zombie_class[id])
 		
-		ExecuteForward(g_Forwards[FWD_USER_INFECT], g_fwResult, id, -1, 0)
+		ExecuteForward(g_Forwards[FWD_USER_INFECT], g_fwResult, id, -1, INFECT_CHANGECLASS)
 		
 		set_weapon_anim(id, 3)
 		menu_destroy(menu)
@@ -2619,7 +2617,7 @@ public menu_selectclass_handle(id, menu, item)
 				
 				set_weapon_anim(id, 3)
 				
-				ExecuteForward(g_Forwards[FWD_USER_INFECT], g_fwResult, id, -1, 0)
+				ExecuteForward(g_Forwards[FWD_USER_INFECT], g_fwResult, id, -1, INFECT_CHANGECLASS)
 				g_can_choose_class[id] = 0
 				
 				menu_destroy(menu)			
@@ -2643,7 +2641,7 @@ public menu_selectclass_handle(id, menu, item)
 				
 			set_weapon_anim(id, 3)
 			
-			ExecuteForward(g_Forwards[FWD_USER_INFECT], g_fwResult, id, -1, 0)
+			ExecuteForward(g_Forwards[FWD_USER_INFECT], g_fwResult, id, -1, INFECT_CHANGECLASS)
 			menu_destroy(menu)
 			
 			g_can_choose_class[id] = 0
