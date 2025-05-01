@@ -10,44 +10,24 @@
 #define AUTHOR "Dias"
 
 new const LANG_FILE[] = "zombie_thehero2.txt"
-
+new const SETTING_FILE[] = "zombie_thehero2/zclasscfg/sting.ini"
+new const SETTING_CONFIG[] = "Config"
+new const SETTING_MODELS[] = "Models"
+new const SETTING_SOUNDS[] = "Sounds"
+new const SETTING_SKILL[] = "Skill"
 // Zombie Configs
-new const zclass_name[] = "Sting Finger"
-new const zclass_desc[] = "Tentacle"
-new const zclass_desc2[] = "High Jump"
-new const zclass_sex = SEX_FEMALE
-new const zclass_lockcost = 10000
-new const zclass_hostmodel[] = "resident_zombi_host"
-new const zclass_originmodel[] = "resident_zombi_origin"
-new const zclass_clawsmodelhost[] = "v_knife_resident_zombi.mdl"
-new const zclass_clawsmodelorigin[] = "v_knife_resident_zombi.mdl"
-new const zombiegrenade_modelhost[] = "models/zombie_thehero/v_zombibomb_resident.mdl"
-new const zombiegrenade_modelorigin[] = "models/zombie_thehero/v_zombibomb_resident.mdl"
-new const Float:zclass_gravity = 0.85
-new const Float:zclass_speedhost = 280.0
-new const Float:zclass_speedorigin = 290.0
-new const Float:zclass_knockback = 2.75
-new const Float:zclass_painshock = 0.7
-new const DeathSound[2][] =
-{
-	"zombie_thehero/resident_death.wav",
-	"zombie_thehero/resident_death.wav"
-}
-new const HurtSound[2][] = 
-{
-	"zombie_thehero/resident_hurt1.wav",
-	"zombie_thehero/resident_hurt2.wav"	
-}
-new const HealSound[] = "zombie_thehero/zombi_heal_female.wav"
-new const EvolSound[] = "zombie_thehero/zombi_evolution_female.wav"
-new const Float:ClawsDistance1 = 1.1
-new const Float:ClawsDistance2 = 1.2
-
-new const TentacleSound[] = "zombie_thehero/resident_skill1.wav"
-new const HeavyJumpSound[] = "zombie_thehero/resident_skill2.wav"
+new zclass_sex, zclass_lockcost
+new zclass_name[32], zclass_desc[32], zclass_desc2[32], zclass_hostmodel[32], zclass_originmodel[32], zclass_clawsmodelhost[32], zclass_clawsmodelorigin[32]
+new zombiegrenade_modelhost[64], zombiegrenade_modelorigin[64], HealSound[64], EvolSound[64]
+new Float:zclass_gravity, Float:zclass_speedhost, Float:zclass_speedorigin, Float:zclass_knockback
+new Float:zclass_dmgmulti, Float:zclass_painshock, Float:ClawsDistance1, Float:ClawsDistance2
+new Array:DeathSound, DeathSoundString1[64], DeathSoundString2[64]
+new Array:HurtSound, HurtSoundString1[64], HurtSoundString2[64]
+new Float:g_tentacle_cooldown[2], Float:g_tentacle_range[2], Float:g_tentacle_starttime, Float:g_jump_cooldown[2], Float:g_jump_gravity[2], Float:g_jump_starttime, Float:g_jump_time[2]
+new TentacleSound[64], HeavyJumpSound[64]
 
 new g_zombie_classid
-new g_Msg_Fov, g_synchud1, g_synchud2, g_current_time[33], g_current_time2[33]
+new g_synchud1, Float:g_current_time[33], Float:g_current_time2[33]
 new g_can_tentacle[33], g_can_hj[33], g_hj_ing[33], g_temp_attack[33], m_iBlood[2]
 
 #define LANG_OFFICIAL LANG_PLAYER
@@ -56,56 +36,43 @@ new g_can_tentacle[33], g_can_hj[33], g_hj_ing[33], g_temp_attack[33], m_iBlood[
 #define TASK_HEAVYJUMP_START 423423
 
 // Tentacle
-#define TENTACLE_TIME 0.5
 #define TENTACLE_ANIM 8
 #define TENTACLE_PLAYERANIM 91
 
-#define TENTACLE_COOLDOWN_ORIGIN 120
-#define TENTACLE_COOLDOWN_HOST 240
-#define TENTACLE_DISTANCE_ORIGIN 160
-#define TENTACLE_DISTANCE_HOST 140
-
 // Heavy Jump
-#define HEAVYJUMP_TIME 1.0
-#define HEAVYJUMP_STARTTIME 1.0
 #define HEAVYJUMP_ANIM 9
 #define HEAVYJUMP_PLAYERANIM 98
-#define HEAVYJUMP_FOV 100
-
-#define HEAVYJUMP_COOLDOWN_ORIGIN 100
-#define HEAVYJUMP_COOLDOWN_HOST 200
-#define HEAVYJUMP_TIME_ORIGIN 10
-#define HEAVYJUMP_TIME_HOST 5
-#define HEAVYJUMP_AMOUNT_ORIGIN 0.35
-#define HEAVYJUMP_AMOUNT_HOST 0.5
 
 public plugin_init() 
 {
 	register_plugin(PLUGIN, VERSION, AUTHOR)
-	
-	register_dictionary(LANG_FILE)
-	
-	register_forward(FM_EmitSound, "fw_EmitSound")
-	register_forward(FM_CmdStart, "fw_CmdStart")
-	register_forward(FM_TraceLine, "fw_TraceLine")
-	register_forward(FM_TraceHull, "fw_TraceHull")	
-	
+	register_forward(FM_CmdStart, "fw_CmdStart")	
 	register_clcmd("drop", "cmd_drop")
 	
-	g_Msg_Fov = get_user_msgid("SetFOV")
 	g_synchud1 = zb3_get_synchud_id(SYNCHUD_ZBHM_SKILL1)
-	g_synchud2 = zb3_get_synchud_id(SYNCHUD_ZBHM_SKILL2)
 }
 
 public plugin_precache()
 {
+	register_dictionary(LANG_FILE)
+	
+	DeathSound = ArrayCreate(64, 1)
+	HurtSound = ArrayCreate(64, 1)
+
+	load_cfg()
+
+	ArrayGetString(DeathSound, 0, DeathSoundString1, charsmax(DeathSoundString1))
+	ArrayGetString(DeathSound, 1, DeathSoundString2, charsmax(DeathSoundString2))
+	ArrayGetString(HurtSound, 0, HurtSoundString1, charsmax(HurtSoundString1))
+	ArrayGetString(HurtSound, 1, HurtSoundString2, charsmax(HurtSoundString2))
+
 	// Register Zombie Class
 	g_zombie_classid = zb3_register_zombie_class(zclass_name, zclass_desc, zclass_sex, zclass_lockcost, 
-	zclass_gravity, zclass_speedhost, zclass_speedorigin, zclass_knockback, zclass_painshock, 
+	zclass_gravity, zclass_speedhost, zclass_speedorigin, zclass_knockback, zclass_dmgmulti, zclass_painshock, 
 	ClawsDistance1, ClawsDistance2)
 	
 	zb3_set_zombie_class_data(zclass_hostmodel, zclass_originmodel, zclass_clawsmodelhost, zclass_clawsmodelorigin, 
-	DeathSound[0], DeathSound[1], HurtSound[0], HurtSound[1], HealSound, EvolSound)
+	DeathSoundString1, DeathSoundString2, HurtSoundString1, HurtSoundString2, HealSound, EvolSound)
 	
 	zb3_register_zbgre_model(zombiegrenade_modelhost, zombiegrenade_modelorigin)
 	
@@ -117,52 +84,115 @@ public plugin_precache()
 	m_iBlood[1] = precache_model("sprites/bloodspray.spr")	
 }
 
-public zb3_user_infected(id, infector)
+public load_cfg()
 {
-	if(zb3_get_user_zombie_class(id) == g_zombie_classid)
-	{
-		reset_skill(id)
-		
-		g_can_tentacle[id] = 1
-		g_can_hj[id] = 1
-		g_hj_ing[id] = 0
-		
-		g_current_time[id] = TENTACLE_COOLDOWN_ORIGIN
-		g_current_time2[id] = HEAVYJUMP_COOLDOWN_ORIGIN
-	}
+	static buffer[128], Array:DummyArray
+
+	formatex(zclass_name, charsmax(zclass_name), "%L", LANG_OFFICIAL, "ZCLASS_RESIDENT_NAME")
+	formatex(zclass_desc, charsmax(zclass_desc), "%L", LANG_OFFICIAL, "ZCLASS_RESIDENT_DESC")
+	formatex(zclass_desc2, charsmax(zclass_desc2), "%L", LANG_OFFICIAL, "ZCLASS_RESIDENT_DESC2")
+	
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_CONFIG, "COST", buffer, sizeof(buffer), DummyArray); zclass_lockcost = str_to_num(buffer)
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_CONFIG, "GENDER", buffer, sizeof(buffer), DummyArray); zclass_sex = str_to_num(buffer)
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_CONFIG, "GRAVITY", buffer, sizeof(buffer), DummyArray); zclass_gravity = str_to_float(buffer)
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_CONFIG, "SPEED_ORIGIN", buffer, sizeof(buffer), DummyArray); zclass_speedorigin = str_to_float(buffer)
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_CONFIG, "SPEED_HOST", buffer, sizeof(buffer), DummyArray); zclass_speedhost = str_to_float(buffer)
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_CONFIG, "KNOCKBACK", buffer, sizeof(buffer), DummyArray); zclass_knockback = str_to_float(buffer)
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_CONFIG, "DAMAGE_MULTIPLIER", buffer, sizeof(buffer), DummyArray); zclass_dmgmulti = str_to_float(buffer)
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_CONFIG, "PAINSHOCK", buffer, sizeof(buffer), DummyArray); zclass_painshock = str_to_float(buffer)
+
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_CONFIG, "SLASH_DISTANCE", buffer, sizeof(buffer), DummyArray); ClawsDistance1 = str_to_float(buffer)
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_CONFIG, "STAB_DISTANCE", buffer, sizeof(buffer), DummyArray); ClawsDistance2 = str_to_float(buffer)
+
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_MODELS, "PLAYERMODEL_ORIGIN", zclass_originmodel, sizeof(zclass_originmodel), DummyArray);
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_MODELS, "PLAYERMODEL_HOST", zclass_hostmodel, sizeof(zclass_hostmodel), DummyArray);
+
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_MODELS, "VIEWMODEL_ORIGIN", zclass_clawsmodelorigin, sizeof(zclass_clawsmodelorigin), DummyArray);
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_MODELS, "VIEWMODEL_HOST", zclass_clawsmodelhost, sizeof(zclass_clawsmodelhost), DummyArray);
+
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_MODELS, "GRENADE_VIEWMODEL_ORIGIN", zombiegrenade_modelorigin, sizeof(zombiegrenade_modelorigin), DummyArray);
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_MODELS, "GRENADE_VIEWMODEL_HOST", zombiegrenade_modelhost, sizeof(zombiegrenade_modelhost), DummyArray);
+
+	zb3_load_setting_string(true,  SETTING_FILE, SETTING_SOUNDS, "DEATH", buffer, 0, DeathSound);
+	zb3_load_setting_string(true,  SETTING_FILE, SETTING_SOUNDS, "HURT", buffer, 0, HurtSound);
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_SOUNDS, "HEAL", HealSound, sizeof(HealSound), DummyArray);
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_SOUNDS, "EVOL", EvolSound, sizeof(EvolSound), DummyArray);
+
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_SKILL, "TENTACLE_STARTTIME", buffer, sizeof(buffer), DummyArray); g_tentacle_starttime = str_to_float(buffer)
+
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_SKILL, "TENTACLE_COOLDOWN_ORIGIN", buffer, sizeof(buffer), DummyArray); g_tentacle_cooldown[ZOMBIE_ORIGIN] = str_to_float(buffer)
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_SKILL, "TENTACLE_COOLDOWN_HOST", buffer, sizeof(buffer), DummyArray); g_tentacle_cooldown[ZOMBIE_HOST] = str_to_float(buffer)
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_SKILL, "TENTACLE_DISTANCE_ORIGIN", buffer, sizeof(buffer), DummyArray); g_tentacle_range[ZOMBIE_ORIGIN] = str_to_float(buffer)
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_SKILL, "TENTACLE_DISTANCE_HOST", buffer, sizeof(buffer), DummyArray); g_tentacle_range[ZOMBIE_HOST] = str_to_float(buffer)
+
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_SKILL, "HEAVYJUMP_STARTTIME", buffer, sizeof(buffer), DummyArray); g_jump_starttime = str_to_float(buffer)
+
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_SKILL, "HEAVYJUMP_COOLDOWN_ORIGIN", buffer, sizeof(buffer), DummyArray); g_jump_cooldown[ZOMBIE_ORIGIN] = str_to_float(buffer)
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_SKILL, "HEAVYJUMP_COOLDOWN_HOST", buffer, sizeof(buffer), DummyArray); g_jump_cooldown[ZOMBIE_HOST] = str_to_float(buffer)
+
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_SKILL, "HEAVYJUMP_TIME_ORIGIN", buffer, sizeof(buffer), DummyArray); g_jump_time[ZOMBIE_ORIGIN] = str_to_float(buffer)
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_SKILL, "HEAVYJUMP_TIME_HOST", buffer, sizeof(buffer), DummyArray); g_jump_time[ZOMBIE_HOST] = str_to_float(buffer)
+
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_SKILL, "HEAVYJUMP_AMOUNT_ORIGIN", buffer, sizeof(buffer), DummyArray); g_jump_gravity[ZOMBIE_ORIGIN] = str_to_float(buffer)
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_SKILL, "HEAVYJUMP_AMOUNT_HOST", buffer, sizeof(buffer), DummyArray); g_jump_gravity[ZOMBIE_HOST] = str_to_float(buffer)
+
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_SKILL, "TENTACLE_SOUND", TentacleSound, sizeof(TentacleSound), DummyArray);
+	zb3_load_setting_string(false, SETTING_FILE, SETTING_SKILL, "HEAVYJUMP_SOUND", HeavyJumpSound, sizeof(HeavyJumpSound), DummyArray);
 }
 
+public zb3_user_infected(id, infector, infect_flag)
+{
+	if(zb3_get_user_zombie_class(id) != g_zombie_classid)
+		return;
+
+	switch(infect_flag)
+	{
+		case INFECT_VICTIM: reset_skill(id, true) 
+		case INFECT_CHANGECLASS:
+		{
+			if(g_hj_ing[id]) {
+				zb3_set_user_gravity(id, g_jump_gravity[zb3_get_user_zombie_type(id)])
+			}
+		} 
+	}
+}
 public zb3_user_change_class(id, oldclass, newclass)
 {
-	if(oldclass == g_zombie_classid && oldclass != newclass)
-	{
-		reset_skill(id)
-	}
+	if(newclass == g_zombie_classid && oldclass != newclass)
+		reset_skill(id, true)
+	if(oldclass == g_zombie_classid)
+		reset_skill(id, false)
 }
 
-public reset_skill(id)
+public reset_skill(id, bool:reset_time)
 {
-	g_can_tentacle[id] = 0
-	g_can_hj[id] = 0
+	if( reset_time )
+	{
+		g_current_time[id] = g_tentacle_cooldown[zb3_get_user_zombie_type(id)]
+		g_current_time2[id] = g_jump_cooldown[zb3_get_user_zombie_type(id)]
+	} 
+
+	g_can_tentacle[id] = reset_time ? 1 : 0
+	g_can_hj[id] = reset_time ? 1 : 0
 	g_hj_ing[id] = 0
-	g_temp_attack[id] = 0
-	
-	g_current_time[id] = 0
-	g_current_time2[id] = 0
-	
-	remove_task(id+TASK_HEAVYJUMP)
-	remove_task(id+TASK_HEAVYJUMP_START)
-	
-	if(is_user_connected(id)) set_fov(id)
+
+	if(task_exists(id+TASK_HEAVYJUMP)) remove_task(id+TASK_HEAVYJUMP)
+	if(task_exists(id+TASK_HEAVYJUMP_START)) remove_task(id+TASK_HEAVYJUMP_START)
 }
 
 public zb3_user_spawned(id) 
 {
-	if(!zb3_get_user_zombie(id)) set_task(0.1, "reset_skill", id)
+	if(!zb3_get_user_zombie(id))
+		reset_skill(id, false)
 }
 
-public zb3_user_dead(id) reset_skill(id)
+public zb3_user_dead(id) 
+{
+	if(!zb3_get_user_zombie(id) || zb3_get_user_zombie_class(id) != g_zombie_classid)
+		return;
 
+	reset_skill(id, false)
+}
 public cmd_drop(id)
 {
 	if(!is_user_alive(id))
@@ -174,7 +204,10 @@ public cmd_drop(id)
 	if(get_user_weapon(id) != CSW_KNIFE)
 		return PLUGIN_CONTINUE
 	if(!g_can_tentacle[id])
+	{
+		client_print(id, print_center, "%L", LANG_PLAYER, "ZOMBIE_SKILL_NOT_READY", zclass_desc , floatround(get_cooldowntime(id) - g_current_time[id]))
 		return PLUGIN_HANDLED
+	}
 
 	Do_Tentacle(id)
 
@@ -183,11 +216,11 @@ public cmd_drop(id)
 
 public fw_CmdStart(id, uc_handle, seed)
 {
-	if(!is_user_alive(id))
+	if(!is_user_alive(id) ) //|| zb3_get_mode() <= MODE_ORIGINAL)
 		return FMRES_IGNORED
 	if(!zb3_get_user_zombie(id))
 		return FMRES_IGNORED
-	if(zb3_get_user_zombie_class(id) != g_zombie_classid)
+	if(zb3_get_user_zombie_class(id) != g_zombie_classid ) //|| zb3_get_mode() == MODE_MUTATION && zb3_get_user_zombie_type(id) != ZOMBIE_ORIGIN)
 		return FMRES_IGNORED
 	if(get_user_weapon(id) != CSW_KNIFE)
 		return FMRES_IGNORED
@@ -198,7 +231,10 @@ public fw_CmdStart(id, uc_handle, seed)
 	if((CurButton & IN_RELOAD) && !(pev(id, pev_oldbuttons) & IN_RELOAD))
 	{
 		if(!g_can_hj[id] || g_hj_ing[id])
-			return FMRES_IGNORED
+		{
+			client_print(id, print_center, "%L", LANG_PLAYER, "ZOMBIE_SKILL_NOT_READY", zclass_desc2 , floatround(get_cooldowntime2(id) -  g_current_time2[id]))
+			return PLUGIN_HANDLED
+		}
 			
 		Do_HeavyJump(id)				
 	}
@@ -209,13 +245,12 @@ public fw_CmdStart(id, uc_handle, seed)
 public Do_Tentacle(id)
 {
 	g_can_tentacle[id] = 0
-	g_current_time[id] = 0
+	g_current_time[id] = 0.0
 	
-	set_weapons_timeidle(id, TENTACLE_TIME)
-	set_player_nextattack(id, TENTACLE_TIME)
+	set_weapons_timeidle(id, g_tentacle_starttime)
+	set_player_nextattack(id, g_tentacle_starttime)
 	
 	do_fake_attack(id)
-	//set_fov(id, BAT_FOV)
 	
 	set_weapon_anim(id, TENTACLE_ANIM)
 	//set_entity_anim(id, TENTACLE_PLAYERANIM, 1.0)
@@ -230,7 +265,7 @@ public Check_Tentacle(id)
 	#define MAX_POINT 4
 	static Float:Max_Distance, Float:Point[MAX_POINT][3], Float:TB_Distance
 	
-	Max_Distance = zb3_get_user_level(id) > 1 ? float(TENTACLE_DISTANCE_ORIGIN) : float(TENTACLE_DISTANCE_HOST)
+	Max_Distance = g_tentacle_range[zb3_get_user_zombie_type(id)]
 	TB_Distance = Max_Distance / float(MAX_POINT)
 	
 	static Float:VicOrigin[3], Float:MyOrigin[3]
@@ -259,7 +294,7 @@ public Check_Tentacle(id)
 		{
 			VicOrigin[2] += 15.0
 			create_blood(VicOrigin)
-			zb3_infect(i, id, 0, 0)
+			zb3_infect(i, id, false, false)
 		}
 
 	}		
@@ -269,17 +304,17 @@ public Do_HeavyJump(id)
 {
 	g_can_hj[id] = 0
 	g_hj_ing[id] = 1
-	g_current_time2[id] = 0
+	g_current_time2[id] = 0.0
 	
-	set_weapons_timeidle(id, HEAVYJUMP_TIME)
-	set_player_nextattack(id, HEAVYJUMP_TIME)
+	set_weapons_timeidle(id, g_jump_starttime)
+	set_player_nextattack(id, g_jump_starttime)
 	
 	do_fake_attack(id)
 	set_weapon_anim(id, HEAVYJUMP_ANIM)
 	set_pev(id, pev_sequence, HEAVYJUMP_PLAYERANIM)
 	
 	EmitSound(id, CHAN_ITEM, HeavyJumpSound)
-	set_task(HEAVYJUMP_STARTTIME, "Start_HeavyJump", id+TASK_HEAVYJUMP_START)
+	set_task(g_jump_starttime, "Start_HeavyJump", id+TASK_HEAVYJUMP_START)
 }
 
 public Start_HeavyJump(id)
@@ -294,11 +329,10 @@ public Start_HeavyJump(id)
 		return 	
 	if(!g_hj_ing[id])
 		return
-		
-	set_fov(id, HEAVYJUMP_FOV)
-	set_pev(id, pev_gravity, zb3_get_user_level(id) > 1 ? HEAVYJUMP_AMOUNT_ORIGIN : HEAVYJUMP_AMOUNT_HOST)
+
+	zb3_set_user_gravity(id, g_jump_gravity[zb3_get_user_zombie_type(id)])
 	
-	set_task(zb3_get_user_level(id) > 1 ? float(HEAVYJUMP_TIME_ORIGIN) : float(HEAVYJUMP_TIME_HOST), "Stop_HeavyJump", id+TASK_HEAVYJUMP)
+	set_task(g_jump_time[zb3_get_user_zombie_type(id)], "Stop_HeavyJump", id+TASK_HEAVYJUMP)
 }
 
 public Stop_HeavyJump(id)
@@ -313,9 +347,7 @@ public Stop_HeavyJump(id)
 		return 	
 	if(!g_hj_ing[id])
 		return
-		
-	set_fov(id)
-	set_pev(id, pev_gravity, zclass_gravity)
+	zb3_reset_user_gravity(id)
 }
 
 public zb3_skill_show(id)
@@ -326,152 +358,30 @@ public zb3_skill_show(id)
 		return
 	if(zb3_get_user_zombie_class(id) != g_zombie_classid)
 		return 	
-		
-	if(g_current_time[id] < TENTACLE_COOLDOWN_ORIGIN)
+	
+	if(g_current_time[id] < get_cooldowntime(id)) 
 		g_current_time[id]++
-	if(g_current_time2[id] < HEAVYJUMP_COOLDOWN_ORIGIN)
+	if(g_current_time2[id] < get_cooldowntime2(id))
 		g_current_time2[id]++
 	
-	static percent
-	static timewait
+	static percent , percent2
 	
 	// Tentacle Skill
-	timewait = zb3_get_user_level(id) > 1 ? TENTACLE_COOLDOWN_ORIGIN : TENTACLE_COOLDOWN_HOST
-	percent = floatround((float(g_current_time[id]) / float(timewait)) * 100.0)
-
-	if(percent > 0 && percent < 50)
-	{
-		set_hudmessage(255, 0, 0, -1.0, 0.10, 0, 3.0, 3.0)
-		ShowSyncHudMsg(id, g_synchud1, "[G] - %s (%i%%)", zclass_desc, percent)
-	} else if(percent >= 50 && percent < 100) {
-		set_hudmessage(255, 255, 0, -1.0, 0.10, 0, 3.0, 3.0)
-		ShowSyncHudMsg(id, g_synchud1, "[G] - %s (%i%%)", zclass_desc, percent)
-	} else if(percent >= 100) {
-		set_hudmessage(255, 255, 255, -1.0, 0.10, 0, 3.0, 3.0)
-		ShowSyncHudMsg(id, g_synchud1, "[G] - %s (Ready)", zclass_desc)
-		
-		if(!g_can_tentacle[id])
-			g_can_tentacle[id] = 1
-	}	
-	
+	percent = floatround(floatclamp((g_current_time[id] / get_cooldowntime(id)) * 100.0, 0.0, 100.0))
 	// HeavyJump Skill
-	timewait = zb3_get_user_level(id) > 1 ? HEAVYJUMP_COOLDOWN_ORIGIN : HEAVYJUMP_COOLDOWN_HOST
-	percent = floatround((float(g_current_time2[id]) / float(timewait)) * 100.0)
-	
-	if(percent > 0 && percent < 50)
-	{
-		set_hudmessage(255, 0, 0, -1.0, 0.13, 0, 3.0, 3.0)
-		ShowSyncHudMsg(id, g_synchud2, "[R] - %s (%i%%)", zclass_desc2, percent)
-	} else if(percent >= 50 && percent < 100) {
-		set_hudmessage(255, 255, 0, -1.0, 0.13, 0, 3.0, 3.0)
-		ShowSyncHudMsg(id, g_synchud2, "[R] - %s (%i%%)", zclass_desc2, percent)
-	} else if(percent >= 100) {
-		set_hudmessage(255, 255, 255, -1.0, 0.13, 0, 3.0, 3.0)
-		ShowSyncHudMsg(id, g_synchud2, "[R] - %s (Ready)", zclass_desc2)
-		
-		if(!g_can_hj[id])
-		{
-			g_can_hj[id] = 1
-			g_hj_ing[id] = 0
-		}
-	}		
-}
+	percent2 = floatround(floatclamp((g_current_time2[id] / get_cooldowntime2(id)) * 100.0, 0.0, 100.0))
 
-public fw_EmitSound(id, channel, const sample[], Float:volume, Float:attn, flags, pitch)
-{
-	if(!is_user_connected(id))
-		return FMRES_IGNORED
-	if(!zb3_get_user_zombie(id))
-		return FMRES_IGNORED
-	if(!g_temp_attack[id])
-		return FMRES_IGNORED
-		
-	if(sample[8] == 'k' && sample[9] == 'n' && sample[10] == 'i')
+	set_hudmessage(255, 255, 255, -1.0, 0.10, 0, 3.0, 3.0) // "[G] - %s (%i%%)^n[R] - %s (%i%%)"
+	ShowSyncHudMsg(id, g_synchud1, "%L", LANG_PLAYER, "ZOMBIE_SKILL_DOUBLE", zclass_desc, percent, zclass_desc2, percent2)
+	
+	if(percent == 100 && !g_can_tentacle[id])
+		g_can_tentacle[id] = 1
+	
+	if(percent2 == 100 && !g_can_hj[id])
 	{
-		if(sample[14] == 's' && sample[15] == 'l' && sample[16] == 'a')
-		{	
-			return FMRES_SUPERCEDE
-		}
-		if (sample[14] == 'h' && sample[15] == 'i' && sample[16] == 't') // hit
-		{
-			if(sample[17] == 'w')
-			{
-				return FMRES_SUPERCEDE
-			} else {
-				return FMRES_SUPERCEDE
-			}
-		}
-		if (sample[14] == 's' && sample[15] == 't' && sample[16] == 'a') // stab
-		{
-			return FMRES_SUPERCEDE;
-		}
+		g_can_hj[id] = 1
+		g_hj_ing[id] = 0
 	}
-	
-	return FMRES_IGNORED
-}
-
-public fw_TraceLine(Float:vector_start[3], Float:vector_end[3], ignored_monster, id, handle)
-{
-	if(!is_user_alive(id))
-		return FMRES_IGNORED
-	if(!zb3_get_user_zombie(id))
-		return FMRES_IGNORED
-	if(!g_temp_attack[id])
-		return FMRES_IGNORED
-	
-	static Float:vecStart[3], Float:vecEnd[3], Float:v_angle[3], Float:v_forward[3], Float:view_ofs[3], Float:fOrigin[3]
-	
-	pev(id, pev_origin, fOrigin)
-	pev(id, pev_view_ofs, view_ofs)
-	xs_vec_add(fOrigin, view_ofs, vecStart)
-	pev(id, pev_v_angle, v_angle)
-	
-	engfunc(EngFunc_MakeVectors, v_angle)
-	get_global_vector(GL_v_forward, v_forward)
-
-	xs_vec_mul_scalar(v_forward, 0.0, v_forward)
-	xs_vec_add(vecStart, v_forward, vecEnd)
-	
-	engfunc(EngFunc_TraceLine, vecStart, vecEnd, ignored_monster, id, handle)
-	
-	return FMRES_SUPERCEDE
-}
-
-public fw_TraceHull(Float:vector_start[3], Float:vector_end[3], ignored_monster, hull, id, handle)
-{
-	if(!is_user_alive(id))
-		return FMRES_IGNORED
-	if(!zb3_get_user_zombie(id))
-		return FMRES_IGNORED
-	if(!g_temp_attack[id])
-		return FMRES_IGNORED
-	
-	static Float:vecStart[3], Float:vecEnd[3], Float:v_angle[3], Float:v_forward[3], Float:view_ofs[3], Float:fOrigin[3]
-	
-	pev(id, pev_origin, fOrigin)
-	pev(id, pev_view_ofs, view_ofs)
-	xs_vec_add(fOrigin, view_ofs, vecStart)
-	pev(id, pev_v_angle, v_angle)
-	
-	engfunc(EngFunc_MakeVectors, v_angle)
-	get_global_vector(GL_v_forward, v_forward)
-
-	xs_vec_mul_scalar(v_forward, 0.0, v_forward)
-	xs_vec_add(vecStart, v_forward, vecEnd)
-	
-	engfunc(EngFunc_TraceHull, vecStart, vecEnd, ignored_monster, hull, id, handle)
-	
-	return FMRES_SUPERCEDE
-}
-
-stock set_fov(id, num = 90)
-{
-	if(!is_user_connected(id))
-		return
-	
-	message_begin(MSG_ONE_UNRELIABLE, g_Msg_Fov, {0,0,0}, id)
-	write_byte(num)
-	message_end()
 }
 
 stock EmitSound(id, chan, const file_sound[])
@@ -559,36 +469,6 @@ stock get_position(ent, Float:forw, Float:right, Float:up, Float:vStart[])
 	vStart[2] = vOrigin[2] + vForward[2] * forw + vRight[2] * right + vUp[2] * up
 }
 
-stock hook_ent(victim, attacker, Float:speed)
-{
-	if(!pev_valid(victim) || !pev_valid(attacker))
-		return
-	
-	static Float:fl_Velocity[3]
-	static Float:EntOrigin[3], Float:VicOrigin[3]
-	
-	pev(victim, pev_origin, EntOrigin)
-	pev(attacker, pev_origin, VicOrigin)
-	
-	static Float:distance_f
-	distance_f = get_distance_f(EntOrigin, VicOrigin)
-	
-	if (distance_f > 60.0)
-	{
-		new Float:fl_Time = distance_f / speed
-		
-		fl_Velocity[0] = (VicOrigin[0] - EntOrigin[0]) / fl_Time
-		fl_Velocity[1] = (VicOrigin[1] - EntOrigin[1]) / fl_Time
-		fl_Velocity[2] = (VicOrigin[2] - EntOrigin[2]) / fl_Time
-	} else {
-		fl_Velocity[0] = 0.0
-		fl_Velocity[1] = 0.0
-		fl_Velocity[2] = 0.0
-	}
-
-	entity_set_vector(victim, EV_VEC_velocity, fl_Velocity)
-}
-
 stock is_wall_between_points(Float:start[3], Float:end[3], ignore_ent)
 {
 	static ptr
@@ -616,75 +496,15 @@ stock create_blood(const Float:origin[3])
 	write_byte(5)
 	message_end()
 }
-
-public bool:can_see_fm(entindex1, entindex2)
+stock Float:get_cooldowntime(id)
 {
-	if (!entindex1 || !entindex2)
-		return false
-
-	if (pev_valid(entindex1) && pev_valid(entindex1))
-	{
-		new flags = pev(entindex1, pev_flags)
-		if (flags & EF_NODRAW || flags & FL_NOTARGET)
-		{
-			return false
-		}
-
-		new Float:lookerOrig[3]
-		new Float:targetBaseOrig[3]
-		new Float:targetOrig[3]
-		new Float:temp[3]
-
-		pev(entindex1, pev_origin, lookerOrig)
-		pev(entindex1, pev_view_ofs, temp)
-		lookerOrig[0] += temp[0]
-		lookerOrig[1] += temp[1]
-		lookerOrig[2] += temp[2]
-
-		pev(entindex2, pev_origin, targetBaseOrig)
-		pev(entindex2, pev_view_ofs, temp)
-		targetOrig[0] = targetBaseOrig [0] + temp[0]
-		targetOrig[1] = targetBaseOrig [1] + temp[1]
-		targetOrig[2] = targetBaseOrig [2] + temp[2]
-
-		engfunc(EngFunc_TraceLine, lookerOrig, targetOrig, 0, entindex1, 0) //  checks the had of seen player
-		if (get_tr2(0, TraceResult:TR_InOpen) && get_tr2(0, TraceResult:TR_InWater))
-		{
-			return false
-		} 
-		else 
-		{
-			new Float:flFraction
-			get_tr2(0, TraceResult:TR_flFraction, flFraction)
-			if (flFraction == 1.0 || (get_tr2(0, TraceResult:TR_pHit) == entindex2))
-			{
-				return true
-			}
-			else
-			{
-				targetOrig[0] = targetBaseOrig [0]
-				targetOrig[1] = targetBaseOrig [1]
-				targetOrig[2] = targetBaseOrig [2]
-				engfunc(EngFunc_TraceLine, lookerOrig, targetOrig, 0, entindex1, 0) //  checks the body of seen player
-				get_tr2(0, TraceResult:TR_flFraction, flFraction)
-				if (flFraction == 1.0 || (get_tr2(0, TraceResult:TR_pHit) == entindex2))
-				{
-					return true
-				}
-				else
-				{
-					targetOrig[0] = targetBaseOrig [0]
-					targetOrig[1] = targetBaseOrig [1]
-					targetOrig[2] = targetBaseOrig [2] - 17.0
-					engfunc(EngFunc_TraceLine, lookerOrig, targetOrig, 0, entindex1, 0) //  checks the legs of seen player
-					get_tr2(0, TraceResult:TR_flFraction, flFraction)
-					if (flFraction == 1.0 || (get_tr2(0, TraceResult:TR_pHit) == entindex2))
-					{
-						return true
-					}
-				}
-			}
-		}
-	}
-	return false
+	if(!zb3_get_user_zombie(id))
+		return 0.0
+	return g_tentacle_cooldown[zb3_get_user_zombie_type(id)]
+}
+stock Float:get_cooldowntime2(id)
+{
+	if(!zb3_get_user_zombie(id))
+		return 0.0
+	return g_jump_cooldown[zb3_get_user_zombie_type(id)] 
 }
