@@ -614,8 +614,11 @@ public plugin_natives()
 {
 	// Native
 	register_native("zb3_infect", "native_infect", 1)
-	
+
+	register_native("zb3_load_setting_string", "native_load_setting_string", 1)
+
 	register_native("zb3_get_user_zombie", "native_get_user_zombie", 1)
+	register_native("zb3_get_user_zombie_type", "native_get_user_zombie_type", 1)
 	register_native("zb3_get_user_zombie_class", "native_get_user_zombie_class", 1)
 	
 	register_native("zb3_set_user_respawn_time", "native_set_respawn_time", 1)
@@ -648,6 +651,10 @@ public plugin_natives()
 	
 	register_native("zb3_get_user_startarmor", "native_get_startarmor", 1)
 	register_native("zb3_set_user_startarmor", "native_set_startarmor", 1)	
+
+	register_native("zb3_get_user_gravity", "native_get_user_gravity", 1) 
+	register_native("zb3_set_user_gravity", "native_set_user_gravity", 1) 
+	register_native("zb3_reset_user_gravity", "native_reset_user_gravity", 1) 
 	
 	register_native("zb3_register_zombie_class", "native_register_zombie_class", 1)
 	register_native("zb3_set_zombie_class_data", "native_set_zombie_class_data", 1)
@@ -722,12 +729,30 @@ public native_infect(id, attacker, origin_zombie, respawn)
 	set_user_zombie(id, attacker, origin_zombie, respawn)
 }
 
+public native_load_setting_string( bool:IsArray, const filename[], const setting_section[], setting_key[], return_string[], string_size, Array:array_handle)
+{
+	param_convert(2)
+	param_convert(3)
+	param_convert(4)
+	param_convert(5)
+
+	amx_load_setting_string( IsArray, filename, setting_section, setting_key, return_string, string_size, array_handle)
+}
+
 public native_get_user_zombie(id)
 {
 	if(!is_user_connected(id))
 		return 0
 		
 	return g_zombie[id]
+}
+
+public native_get_user_zombie_type(id)
+{
+	if(!is_user_connected(id))
+		return 0
+
+	return g_zombie_type[id]
 }
 
 public native_get_user_zombie_class(id)
@@ -906,6 +931,33 @@ public native_get_startarmor(id)
 		return 0
 		
 	return g_StartArmor[id]
+}
+
+
+public native_get_user_gravity(id)
+{
+	if(!is_user_connected(id))
+		return 0
+		
+	if(g_zombie[id]) return ArrayGetCell(zombie_gravity, g_zombie_class[id])
+	else return pev(id, pev_gravity )
+}
+
+public native_set_user_gravity(id, Float:fGravity)
+{
+	if(!is_user_connected(id))
+		return 
+	
+	set_pev(id, pev_gravity, fGravity )
+}
+
+public native_reset_user_gravity(id)
+{
+	if(!is_user_connected(id))
+		return 
+
+	if(g_zombie[id]) set_pev(id, pev_gravity, ArrayGetCell(zombie_gravity, g_zombie_class[id]) ) 
+	else set_pev(id, pev_gravity, 1.0 )
 }
 
 public native_register_zombie_class(const Name[], const Desc[], Sex, LockCost, Float:Gravity, 
@@ -3459,207 +3511,88 @@ stock bool:TerminateRound({PlayerTeams,_}:team)
 // ================================================================
 public load_config_file()
 {
-	static buffer[128]
+	static buffer[128], Array:DummyArray
 	
 	// GamePlay Configs
-	zombie_level2_health = amx_load_setting_int(SETTING_FILE, "Config Value", "ZB_LV2_HEALTH", zombie_level2_health)
-	zombie_level2_armor = amx_load_setting_int(SETTING_FILE, "Config Value", "ZB_LV2_ARMOR", zombie_level2_armor)
-	zombie_level3_health = amx_load_setting_int(SETTING_FILE, "Config Value", "ZB_LV3_HEALTH", zombie_level3_health)
-	zombie_level3_armor = amx_load_setting_int(SETTING_FILE, "Config Value", "ZB_LV3_ARMOR", zombie_level3_armor)
+	amx_load_setting_string( false, SETTING_FILE, "Config Value", "ZB_LV2_HEALTH", buffer, sizeof(buffer), DummyArray); zombie_level2_health = str_to_num(buffer)
+	amx_load_setting_string( false, SETTING_FILE, "Config Value", "ZB_LV3_HEALTH", buffer, sizeof(buffer), DummyArray); zombie_level3_health = str_to_num(buffer)
+	amx_load_setting_string( false, SETTING_FILE, "Config Value", "ZB_LV2_ARMOR", buffer, sizeof(buffer), DummyArray); zombie_level2_armor = str_to_num(buffer)
+	amx_load_setting_string( false, SETTING_FILE, "Config Value", "ZB_LV3_ARMOR", buffer, sizeof(buffer), DummyArray); zombie_level3_armor = str_to_num(buffer)
+
+	amx_load_setting_string( false, SETTING_FILE, "Config Value", "MIN_HEALTH_ZOMBIE", buffer, sizeof(buffer), DummyArray); zombie_minhealth = str_to_num(buffer)
+	amx_load_setting_string( false, SETTING_FILE, "Config Value", "MIN_ARMOR_ZOMBIE", buffer, sizeof(buffer), DummyArray); zombie_minarmor = str_to_num(buffer)
+
+	amx_load_setting_string( false, SETTING_FILE, "Config Value", "GRENADE_POWER", buffer, sizeof(buffer), DummyArray); grenade_default_power = str_to_num(buffer)
 	
-	zombie_minhealth = amx_load_setting_int(SETTING_FILE, "Config Value", "MIN_HEALTH_ZOMBIE", zombie_minhealth)
-	zombie_minarmor = amx_load_setting_int(SETTING_FILE, "Config Value", "MIN_ARMOR_ZOMBIE", zombie_minarmor)
+	amx_load_setting_string( false, SETTING_FILE, "Config Value", "HUMAN_HEALTH", buffer, sizeof(buffer), DummyArray); human_health = str_to_num(buffer)
+	amx_load_setting_string( false, SETTING_FILE, "Config Value", "HUMAN_ARMOR", buffer, sizeof(buffer), DummyArray); human_armor = str_to_num(buffer)
 	
-	g_zombieorigin_defaultlevel = amx_load_setting_int(SETTING_FILE, "Config Value", "LEVEL_ZOMBIE_RANDOM", g_zombieorigin_defaultlevel)
-	start_money = amx_load_setting_int(SETTING_FILE, "Config Value", "MONEY_START", start_money)
-	grenade_default_power = amx_load_setting_int(SETTING_FILE, "Config Value", "GRENADE_POWER", grenade_default_power)
-	
-	human_health = amx_load_setting_int(SETTING_FILE, "Config Value", "HUMAN_HEALTH", human_health)
-	human_armor = amx_load_setting_int(SETTING_FILE, "Config Value", "HUMAN_ARMOR", human_armor)
-	
-	g_classchoose_time = amx_load_setting_int(SETTING_FILE, "Config Value", "CLASS_CHOOSE_TIME", g_classchoose_time)
-	
-	g_respawn_time = amx_load_setting_int(SETTING_FILE, "Config Value", "ZOMBIE_RESPAWN_TIME", g_respawn_time)
-	amx_load_setting_string(SETTING_FILE, "Config Value", "ZOMBIE_RESPAWN_SPR", g_respawn_icon, sizeof(g_respawn_icon))
-	amx_load_setting_string(SETTING_FILE, "Config Value", "ZOMBIE_RESPAWN_HEALTH_REDUCE_MULTI", buffer, charsmax(buffer))
+	amx_load_setting_string( false, SETTING_FILE, "Config Value", "CLASS_CHOOSE_TIME", buffer, sizeof(buffer), DummyArray); g_classchoose_time = str_to_num(buffer)
+
+	amx_load_setting_string( false, SETTING_FILE, "Config Value", "ZOMBIE_RESPAWN_TIME", buffer, sizeof(buffer), DummyArray); g_respawn_time = str_to_num(buffer)
+	amx_load_setting_string( false, SETTING_FILE, "Config Value", "ZOMBIE_RESPAWN_SPR", g_respawn_icon, sizeof(g_respawn_icon), DummyArray)
+	amx_load_setting_string( false, SETTING_FILE, "Config Value", "ZOMBIE_RESPAWN_HEALTH_REDUCE_MULTI", buffer, charsmax(buffer), DummyArray)
 	g_health_reduce_percent = 1.0 - floatclamp( floatabs( str_to_float(buffer) ), 0.0, 0.9 )
 	
 	// Load Hero
-	amx_load_setting_string_arr(SETTING_FILE, "Hero Config", "HERO_MODEL", hero_model_male)
-	amx_load_setting_string_arr(SETTING_FILE, "Hero Config", "HEROINE_MODEL", hero_model_female)
+	amx_load_setting_string( true, SETTING_FILE, "Hero Config", "HERO_MODEL", buffer, 0, hero_model_male)
+	amx_load_setting_string( true, SETTING_FILE, "Hero Config", "HEROINE_MODEL",buffer, 0, hero_model_female)
 	
 	// Weather & Sky Configs
-	g_rain = amx_load_setting_int(SETTING_FILE, "Weather Effects", "RAIN", g_rain)
-	g_snow = amx_load_setting_int(SETTING_FILE, "Weather Effects", "SNOW", g_snow)
-	g_fog = amx_load_setting_int(SETTING_FILE, "Weather Effects", "FOG", g_fog)
-	amx_load_setting_string(SETTING_FILE, "Weather Effects", "FOG_DENSITY", g_fog_density, charsmax(g_fog_density))
-	amx_load_setting_string(SETTING_FILE, "Weather Effects", "FOG_COLOR", g_fog_color, charsmax(g_fog_color))
+	amx_load_setting_string( false, SETTING_FILE, "Weather Effects", "RAIN", buffer, sizeof(buffer), DummyArray); g_rain = str_to_num(buffer)
+	amx_load_setting_string( false, SETTING_FILE, "Weather Effects", "SNOW", buffer, sizeof(buffer), DummyArray); g_snow = str_to_num(buffer)
+	amx_load_setting_string( false, SETTING_FILE, "Weather Effects", "FOG" , buffer, sizeof(buffer), DummyArray); g_fog = str_to_num(buffer)
+
+	amx_load_setting_string( false, SETTING_FILE, "Weather Effects", "FOG_DENSITY", g_fog_density, charsmax(g_fog_density), DummyArray)
+	amx_load_setting_string( false, SETTING_FILE, "Weather Effects", "FOG_COLOR", g_fog_color, charsmax(g_fog_color), DummyArray)
 	
-	g_sky_enabled = amx_load_setting_int(SETTING_FILE, "Custom Skies", "ENABLE", g_sky_enabled)
-	amx_load_setting_string_arr(SETTING_FILE, "Custom Skies", "SKY NAMES", g_sky)
+	amx_load_setting_string( false, SETTING_FILE, "Custom Skies", "ENABLE", buffer, sizeof(buffer), DummyArray); g_sky_enabled = str_to_num(buffer)
+	amx_load_setting_string( true,  SETTING_FILE, "Custom Skies", "SKY NAMES", buffer, 0, g_sky)
 	
 	// Light & NightVision
-	amx_load_setting_string(SETTING_FILE, "Config Value", "LIGHT", g_light, charsmax(g_light))
-	g_NvgAlpha = amx_load_setting_int(SETTING_FILE, "Night Vision", "NVG_ALPHA", g_NvgAlpha)
+	amx_load_setting_string( false, SETTING_FILE, "Config Value", "LIGHT", g_light, charsmax(g_light), DummyArray)
+	amx_load_setting_string( false, SETTING_FILE, "Night Vision", "NVG_ALPHA", buffer, sizeof(buffer), DummyArray); g_NvgAlpha = str_to_num(buffer)
 
 	// Load NVG Config
-	g_NvgColor[TEAM_HUMAN][0] = amx_load_setting_int(SETTING_FILE, "Night Vision", "NVG_HUMAN_COLOR_R", g_NvgColor[TEAM_HUMAN][0])
-	g_NvgColor[TEAM_HUMAN][1] = amx_load_setting_int(SETTING_FILE, "Night Vision", "NVG_HUMAN_COLOR_G", g_NvgColor[TEAM_HUMAN][1])
-	g_NvgColor[TEAM_HUMAN][2] = amx_load_setting_int(SETTING_FILE, "Night Vision", "NVG_HUMAN_COLOR_B", g_NvgColor[TEAM_HUMAN][2])
-	g_NvgColor[TEAM_ZOMBIE][0] = amx_load_setting_int(SETTING_FILE, "Night Vision", "NVG_ZOMBIE_COLOR_R", g_NvgColor[TEAM_ZOMBIE][0])
-	g_NvgColor[TEAM_ZOMBIE][1] = amx_load_setting_int(SETTING_FILE, "Night Vision", "NVG_ZOMBIE_COLOR_G", g_NvgColor[TEAM_ZOMBIE][1])
-	g_NvgColor[TEAM_ZOMBIE][2] = amx_load_setting_int(SETTING_FILE, "Night Vision", "NVG_ZOMBIE_COLOR_B", g_NvgColor[TEAM_ZOMBIE][2])
-	
-	// Load Knocback Config
-	g_kbEnabled = amx_load_setting_int(SETTING_FILE, "Knockback Power for Weapons", "KB_ENABLE", g_kbEnabled)
-	g_kbDamage = amx_load_setting_int(SETTING_FILE, "Knockback Power for Weapons", "KB_DAMAGE", g_kbDamage)
-	g_kbPower = amx_load_setting_int(SETTING_FILE, "Knockback Power for Weapons", "KB_POWER", g_kbPower)
-	g_kbZVel = amx_load_setting_int(SETTING_FILE, "Knockback Power for Weapons", "KB_ZVEL", g_kbZVel)
-	
-	for(new i = 1; i < sizeof WEAPONENTNAMES; i++)
-	{
-		if (!strlen(WEAPONENTNAMES[i])) continue;
-		
-		format(buffer, charsmax(buffer), "%s", WEAPONENTNAMES[i])
-		strtoupper(buffer)
-		amx_load_setting_float(SETTING_FILE, "Knockback Power for Weapons", buffer, g_kbWpnPower[i])
-	}
-	
+	amx_load_setting_string( false, SETTING_FILE, "Night Vision", "NVG_HUMAN_COLOR_R", buffer, sizeof(buffer), DummyArray); g_NvgColor[TEAM_HUMAN][0] = str_to_num(buffer)
+	amx_load_setting_string( false, SETTING_FILE, "Night Vision", "NVG_HUMAN_COLOR_G", buffer, sizeof(buffer), DummyArray); g_NvgColor[TEAM_HUMAN][1] = str_to_num(buffer)
+	amx_load_setting_string( false, SETTING_FILE, "Night Vision", "NVG_HUMAN_COLOR_B", buffer, sizeof(buffer), DummyArray); g_NvgColor[TEAM_HUMAN][2] = str_to_num(buffer)
+	amx_load_setting_string( false, SETTING_FILE, "Night Vision", "NVG_ZOMBIE_COLOR_R", buffer, sizeof(buffer), DummyArray); g_NvgColor[TEAM_ZOMBIE][0] = str_to_num(buffer)
+	amx_load_setting_string( false, SETTING_FILE, "Night Vision", "NVG_ZOMBIE_COLOR_G", buffer, sizeof(buffer), DummyArray); g_NvgColor[TEAM_ZOMBIE][1] = str_to_num(buffer)
+	amx_load_setting_string( false, SETTING_FILE, "Night Vision", "NVG_ZOMBIE_COLOR_B", buffer, sizeof(buffer), DummyArray); g_NvgColor[TEAM_ZOMBIE][2] = str_to_num(buffer)
+
 	// Load Human Models
-	amx_load_setting_string_arr(SETTING_FILE, "Config Value", "PLAYER_MODEL_MALE", human_model_male)
-	amx_load_setting_string_arr(SETTING_FILE, "Config Value", "PLAYER_MODEL_FEMALE", human_model_female)
+	amx_load_setting_string( true, SETTING_FILE, "Config Value", "PLAYER_MODEL_MALE", buffer, 0, human_model_male)
+	amx_load_setting_string( true, SETTING_FILE, "Config Value", "PLAYER_MODEL_FEMALE", buffer, 0, human_model_female)
 	
 	// Load Sounds
-	amx_load_setting_string_arr(SETTING_FILE, "Sounds", "ZOMBIE_START", sound_game_start)
-	amx_load_setting_string(SETTING_FILE, "Sounds", "ZOMBIE_COUNT", sound_game_count, sizeof(sound_game_count))
-	amx_load_setting_string(SETTING_FILE, "Sounds", "REMAINING_TIME", sound_remain_time, sizeof(sound_remain_time))
+	amx_load_setting_string( true, SETTING_FILE, "Sounds", "ZOMBIE_START", buffer, 0, sound_game_start)
+	amx_load_setting_string( false, SETTING_FILE, "Sounds", "ZOMBIE_COUNT", sound_game_count, sizeof(sound_game_count), DummyArray)
+	amx_load_setting_string( false, SETTING_FILE, "Sounds", "REMAINING_TIME", sound_remain_time, sizeof(sound_remain_time), DummyArray)
 	
-	amx_load_setting_string_arr(SETTING_FILE, "Sounds", "ZOMBIE_COMING", sound_zombie_coming)
-	amx_load_setting_string_arr(SETTING_FILE, "Sounds", "ZOMBIE_COMEBACK", sound_zombie_comeback)
+	amx_load_setting_string( true, SETTING_FILE, "Sounds", "ZOMBIE_COMING", buffer, 0, sound_zombie_coming)
+	amx_load_setting_string( true, SETTING_FILE, "Sounds", "ZOMBIE_COMEBACK", buffer, 0, sound_zombie_comeback)
 	
-	amx_load_setting_string_arr(SETTING_FILE, "Sounds", "WIN_HUMAN", sound_win_human)
-	amx_load_setting_string_arr(SETTING_FILE, "Sounds", "WIN_ZOMBIE", sound_win_zombie)
+	amx_load_setting_string( true, SETTING_FILE, "Sounds", "WIN_HUMAN", buffer, 0, sound_win_human)
+	amx_load_setting_string( true, SETTING_FILE, "Sounds", "WIN_ZOMBIE", buffer, 0, sound_win_zombie)
 	
-	amx_load_setting_string_arr(SETTING_FILE, "Sounds", "HUMAN_DEATH", sound_infect_male)
-	amx_load_setting_string_arr(SETTING_FILE, "Sounds", "FEMALE_DEATH", sound_infect_female)
+	amx_load_setting_string( true, SETTING_FILE, "Sounds", "HUMAN_DEATH", buffer, 0, sound_infect_male)
+	amx_load_setting_string( true, SETTING_FILE, "Sounds", "FEMALE_DEATH", buffer, 0, sound_infect_female)
 	
-	amx_load_setting_string_arr(SETTING_FILE, "Sounds", "ZOMBIE_ATTACK", sound_zombie_attack)
-	amx_load_setting_string_arr(SETTING_FILE, "Sounds", "ZOMBIE_HITWALL", sound_zombie_hitwall)
-	amx_load_setting_string_arr(SETTING_FILE, "Sounds", "ZOMBIE_SWING", sound_zombie_swing)
+	amx_load_setting_string( true, SETTING_FILE, "Sounds", "ZOMBIE_ATTACK", buffer, 0, sound_zombie_attack)
+	amx_load_setting_string( true, SETTING_FILE, "Sounds", "ZOMBIE_HITWALL", buffer, 0, sound_zombie_hitwall)
+	amx_load_setting_string( true, SETTING_FILE, "Sounds", "ZOMBIE_SWING", buffer, 0, sound_zombie_swing)
 	
-	amx_load_setting_string(SETTING_FILE, "Sounds", "AMBIENCE", sound_ambience, sizeof(sound_ambience))
-	amx_load_setting_string(SETTING_FILE, "Sounds", "HUMAN_LEVELUP", sound_human_levelup, sizeof(sound_human_levelup))	
+	amx_load_setting_string( false, SETTING_FILE, "Sounds", "AMBIENCE", sound_ambience, sizeof(sound_ambience), DummyArray)
+	amx_load_setting_string( false, SETTING_FILE, "Sounds", "HUMAN_LEVELUP", sound_human_levelup, sizeof(sound_human_levelup), DummyArray)
+
 	// Restore Health Config
-	Restore_Health_Time = amx_load_setting_int(SETTING_FILE, "Restore Health", "RESTORE_HEALTH_TIME", Restore_Health_Time)
-	Restore_Amount_Host = amx_load_setting_int(SETTING_FILE, "Restore Health", "RESTORE_HEALTH_DMG_LV1", Restore_Amount_Host)
-	Restore_Amount_Origin = amx_load_setting_int(SETTING_FILE, "Restore Health", "RESTORE_HEALTH_DMG_LV2", Restore_Amount_Origin)
+	amx_load_setting_string( false, SETTING_FILE, "Restore Health", "RESTORE_HEALTH_TIME", buffer, sizeof(buffer), DummyArray); Restore_Health_Time = str_to_num(buffer)
+	amx_load_setting_string( false, SETTING_FILE, "Restore Health", "RESTORE_HEALTH_DMG_LV1", buffer, sizeof(buffer), DummyArray); Restore_Amount_Host = str_to_num(buffer)
+	amx_load_setting_string( false, SETTING_FILE, "Restore Health", "RESTORE_HEALTH_DMG_LV2", buffer, sizeof(buffer), DummyArray); Restore_Amount_Origin = str_to_num(buffer)
 }
 
-stock amx_load_setting_int(const filename[], const setting_section[], setting_key[], return_value)
-{
-	if (strlen(filename) < 1)
-	{
-		log_error(AMX_ERR_NATIVE, "[ZP] Can't load settings: empty filename")
-		return false;
-	}
-	
-	if (strlen(setting_section) < 1 || strlen(setting_key) < 1)
-	{
-		log_error(AMX_ERR_NATIVE, "[ZP] Can't load settings: empty section/key")
-		return false;
-	}
-	
-	// Build customization file path
-	new path[64]
-	get_configsdir(path, charsmax(path))
-	format(path, charsmax(path), "%s/%s", path, filename)
-	
-	// File not present
-	if (!file_exists(path))
-		return false;
-	
-	// Open customization file for reading
-	new file = fopen(path, "rt")
-	
-	// File can't be opened
-	if (!file)
-		return false;
-	
-	// Set up some vars to hold parsing info
-	new linedata[1024], section[64]
-	
-	// Seek to setting's section
-	while (!feof(file))
-	{
-		// Read one line at a time
-		fgets(file, linedata, charsmax(linedata))
-		
-		// Replace newlines with a null character to prevent headaches
-		replace(linedata, charsmax(linedata), "^n", "")
-		
-		// New section starting
-		if (linedata[0] == '[')
-		{
-			// Store section name without braces
-			copyc(section, charsmax(section), linedata[1], ']')
-			
-			// Is this our setting's section?
-			if (equal(section, setting_section))
-				break;
-		}
-	}
-	
-	// Section not found
-	if (!equal(section, setting_section))
-	{
-		fclose(file)
-		return false;
-	}
-	
-	// Set up some vars to hold parsing info
-	new key[64], current_value[32]
-	
-	// Seek to setting's key
-	while (!feof(file))
-	{
-		// Read one line at a time
-		fgets(file, linedata, charsmax(linedata))
-		
-		// Replace newlines with a null character to prevent headaches
-		replace(linedata, charsmax(linedata), "^n", "")
-		
-		// Blank line or comment
-		if (!linedata[0] || linedata[0] == ';') continue;
-		
-		// Section ended?
-		if (linedata[0] == '[')
-			break;
-		
-		// Get key and value
-		strtok(linedata, key, charsmax(key), current_value, charsmax(current_value), '=')
-		
-		// Trim spaces
-		trim(key)
-		trim(current_value)
-		
-		// Is this our setting's key?
-		if (equal(key, setting_key))
-		{
-			// Return int by reference
-			return_value = str_to_num(current_value)
-			
-			// Values succesfully retrieved
-			fclose(file)
-			return return_value
-		}
-	}
-	
-	// Key not found
-	fclose(file)
-	return false;
-}
-
-public amx_load_setting_float(const filename[], const setting_section[], setting_key[], Float:return_value)
+public amx_load_setting_string( bool:IsArray ,const filename[], const setting_section[], setting_key[], return_string[], string_size, Array:array_handle)
 {
 	if (strlen(filename) < 1)
 	{
@@ -3673,118 +3606,14 @@ public amx_load_setting_float(const filename[], const setting_section[], setting
 		return false;
 	}
 	
-	// Build customization file path
-	new path[64]
-	get_configsdir(path, charsmax(path))
-	format(path, charsmax(path), "%s/%s", path, filename)
-	
-	// File not present
-	if (!file_exists(path))
-		return false;
-	
-	// Open customization file for reading
-	new file = fopen(path, "rt")
-	
-	// File can't be opened
-	if (!file)
-		return false;
-	
-	// Set up some vars to hold parsing info
-	new linedata[1024], section[64]
-	
-	// Seek to setting's section
-	while (!feof(file))
-	{
-		// Read one line at a time
-		fgets(file, linedata, charsmax(linedata))
-		
-		// Replace newlines with a null character to prevent headaches
-		replace(linedata, charsmax(linedata), "^n", "")
-		
-		// New section starting
-		if (linedata[0] == '[')
-		{
-			// Store section name without braces
-			copyc(section, charsmax(section), linedata[1], ']')
-			
-			// Is this our setting's section?
-			if (equal(section, setting_section))
-				break;
-		}
-	}
-	
-	// Section not found
-	if (!equal(section, setting_section))
-	{
-		fclose(file)
-		return false;
-	}
-	
-	// Set up some vars to hold parsing info
-	new key[64], current_value[32]
-	
-	// Seek to setting's key
-	while (!feof(file))
-	{
-		// Read one line at a time
-		fgets(file, linedata, charsmax(linedata))
-		
-		// Replace newlines with a null character to prevent headaches
-		replace(linedata, charsmax(linedata), "^n", "")
-		
-		// Blank line or comment
-		if (!linedata[0] || linedata[0] == ';') continue;
-		
-		// Section ended?
-		if (linedata[0] == '[')
-			break;
-		
-		// Get key and value
-		strtok(linedata, key, charsmax(key), current_value, charsmax(current_value), '=')
-		
-		// Trim spaces
-		trim(key)
-		trim(current_value)
-		
-		// Is this our setting's key?
-		if (equal(key, setting_key))
-		{
-			// Return float by reference
-			return_value = str_to_float(current_value)
-			
-			// Values succesfully retrieved
-			fclose(file)
-			return true;
-		}
-	}
-	
-	// Key not found
-	fclose(file)
-	return false;
-}
-
-public amx_load_setting_string_arr(const filename[], const setting_section[], setting_key[], Array:array_handle)
-{
-	if (strlen(filename) < 1)
-	{
-		log_error(AMX_ERR_NATIVE, "[ZP] Can't load settings: empty filename")
-		return false;
-	}
-
-	if (strlen(setting_section) < 1 || strlen(setting_key) < 1)
-	{
-		log_error(AMX_ERR_NATIVE, "[ZP] Can't load settings: empty section/key")
-		return false;
-	}
-	
-	if (array_handle == Invalid_Array)
+	if ( IsArray && array_handle == Invalid_Array)
 	{
 		log_error(AMX_ERR_NATIVE, "[ZP] Array not initialized")
 		return false;
 	}
-	
+
 	// Build customization file path
-	new path[64]
+	new path[256]
 	get_configsdir(path, charsmax(path))
 	format(path, charsmax(path), "%s/%s", path, filename)
 	
@@ -3826,6 +3655,9 @@ public amx_load_setting_string_arr(const filename[], const setting_section[], se
 	// Section not found
 	if (!equal(section, setting_section))
 	{
+#if defined _DEBUG
+		server_print("[ZB3] [%s] = N/A", setting_section)
+#endif
 		fclose(file)
 		return false;
 	}
@@ -3849,131 +3681,45 @@ public amx_load_setting_string_arr(const filename[], const setting_section[], se
 		if (linedata[0] == '[')
 			break;
 		
-		// Get key and values
-		strtok(linedata, key, charsmax(key), values, charsmax(values), '=')
-		
-		// Trim spaces
-		trim(key)
-		trim(values)
-		
-		// Is this our setting's key?
-		if (equal(key, setting_key))
-		{
-			// Parse values
-			while (values[0] != 0 && strtok(values, current_value, charsmax(current_value), values, charsmax(values), ','))
-			{
-				// Trim spaces
-				trim(current_value)
-				trim(values)
-				
-				// Add to array
-				ArrayPushString(array_handle, current_value)
-			}
-			
-			// Values succesfully retrieved
-			fclose(file)
-			return true;
-		}
-	}
-	
-	// Key not found
-	fclose(file)
-	return false;
-}
-
-
-public amx_load_setting_string(const filename[], const setting_section[], setting_key[], return_string[], string_size)
-{
-	if (strlen(filename) < 1)
-	{
-		log_error(AMX_ERR_NATIVE, "[ZP] Can't load settings: empty filename")
-		return false;
-	}
-
-	if (strlen(setting_section) < 1 || strlen(setting_key) < 1)
-	{
-		log_error(AMX_ERR_NATIVE, "[ZP] Can't load settings: empty section/key")
-		return false;
-	}
-	
-	// Build customization file path
-	new path[64]
-	get_configsdir(path, charsmax(path))
-	format(path, charsmax(path), "%s/%s", path, filename)
-	
-	// File not present
-	if (!file_exists(path))
-		return false;
-	
-	// Open customization file for reading
-	new file = fopen(path, "rt")
-	
-	// File can't be opened
-	if (!file)
-		return false;
-	
-	// Set up some vars to hold parsing info
-	new linedata[1024], section[64]
-	
-	// Seek to setting's section
-	while (!feof(file))
-	{
-		// Read one line at a time
-		fgets(file, linedata, charsmax(linedata))
-		
-		// Replace newlines with a null character to prevent headaches
-		replace(linedata, charsmax(linedata), "^n", "")
-		
-		// New section starting
-		if (linedata[0] == '[')
-		{
-			// Store section name without braces
-			copyc(section, charsmax(section), linedata[1], ']')
-			
-			// Is this our setting's section?
-			if (equal(section, setting_section))
-				break;
-		}
-	}
-	
-	// Section not found
-	if (!equal(section, setting_section))
-	{
-		fclose(file)
-		return false;
-	}
-	
-	// Set up some vars to hold parsing info
-	new key[64], current_value[128]
-	
-	// Seek to setting's key
-	while (!feof(file))
-	{
-		// Read one line at a time
-		fgets(file, linedata, charsmax(linedata))
-		
-		// Replace newlines with a null character to prevent headaches
-		replace(linedata, charsmax(linedata), "^n", "")
-		
-		// Blank line or comment
-		if (!linedata[0] || linedata[0] == ';') continue;
-		
-		// Section ended?
-		if (linedata[0] == '[')
-			break;
-		
 		// Get key and value
-		strtok(linedata, key, charsmax(key), current_value, charsmax(current_value), '=')
+		switch(IsArray)
+		{
+			case false: strtok(linedata, key, charsmax(key), current_value, charsmax(current_value), '=')
+			case true:  strtok(linedata, key, charsmax(key), values, charsmax(values), '=')
+		}
 		
 		// Trim spaces
 		trim(key)
 		trim(current_value)
-		
+
 		// Is this our setting's key?
 		if (equal(key, setting_key))
 		{
-			formatex(return_string, string_size, "%s", current_value)
-			
+			switch(IsArray)
+			{
+				case true:
+				{
+					while (values[0] != 0 && strtok(values, current_value, charsmax(current_value), values, charsmax(values), ','))
+					{
+						// Trim spaces
+						trim(current_value)
+						trim(values)
+
+						ArrayPushString(array_handle, current_value) // Add to array
+#if defined _DEBUG
+						server_print("[ZB3] [%s] %s = %s", setting_section, setting_key, current_value)
+#endif
+					}
+				}
+				case false:
+				{
+					formatex(return_string, string_size, "%s", current_value)
+#if defined _DEBUG
+					server_print("[ZB3] [%s] %s = %s", setting_section, setting_key, return_string)
+#endif
+				}
+			}
+
 			// Values succesfully retrieved
 			fclose(file)
 			return true;

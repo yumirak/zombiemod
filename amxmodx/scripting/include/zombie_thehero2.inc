@@ -65,7 +65,10 @@ enum
 // Natives
 native zb3_infect(id, attacker, origin_zombie, respawn); // Infect a Player
 
+native zb3_load_setting_string( bool:IsArray, const filename[], const setting_section[], setting_key[], return_string[], string_size, Array:array_handle)
+
 native zb3_get_user_zombie(id); // Return if User is A Zombie
+native zb3_get_user_zombie_type(id); 
 native zb3_get_user_zombie_class(id); // Return id class of zombie
 native zb3_set_user_respawn_time(id, Time);
 native zb3_reset_user_respawn_time(id);
@@ -105,6 +108,11 @@ native zb3_register_zbgre_model(const v_model_host[], const v_model_origin[]);
 
 native zb3_supplybox_random_getitem(id, hero);
 native zb3_register_weapon(const Name[], weapon_type, unlock_cost)
+
+native zb3_get_user_gravity(id);
+native zb3_set_user_gravity(id, Float:fGravity);
+native zb3_reset_user_gravity(id);
+
 
 // Forwards
 forward zb3_user_infected(id, infector, really_infect); // Call when a guy get infect
