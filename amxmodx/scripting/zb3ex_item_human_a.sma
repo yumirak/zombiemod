@@ -94,6 +94,8 @@ public plugin_init()
 	
 	g_Msg_ScreenFade = get_user_msgid("ScreenFade")
 	
+	register_event("TextMsg", "event_restart", "a", "2=#Game_will_restart_in")
+
 	register_clcmd("fastrun", "do_fastrun")
 	register_clcmd("use_deadlyshot", "do_deadlyshot")
 	register_clcmd("use_bloodyblade", "do_bloodyblade")
@@ -111,11 +113,11 @@ public plugin_precache()
 	
 	g_wing_boot = zb3_register_item("Wing Boot", "More High Jump", g_wb_cost, TEAM2_HUMAN, 1)
 	g_double_grenade = zb3_register_item("x2 HeGrenade", "+1 More HeGrenade", g_dg_cost, TEAM2_HUMAN, 1)
-	g_p30_damage = zb3_register_item("+30% Damage", "Start Damage is 130%", g_p30_cost, TEAM2_HUMAN, 1)
+	g_nightvision = zb3_register_item("NightVision", "See in Dark", g_nightvision_cost, TEAM2_HUMAN, 1)
 	g_sprint = zb3_register_item("Sprint", "FastRun (10 seconds)", g_sprint_cost, TEAM2_HUMAN, 1)
 	g_deadlyshot = zb3_register_item("Deadly Shot", "Deal All Damage to the Head", g_deadlyshot_cost, TEAM2_HUMAN, 1)
 	g_bloodyblade = zb3_register_item("Bloody Blade", "x2 Melee Damage", g_bloodyblade_cost, TEAM2_HUMAN, 1)
-	g_nightvision = zb3_register_item("NightVision", "See in Dark", g_nightvision_cost, TEAM2_HUMAN, 1)
+	g_p30_damage = zb3_register_item("+30% Damage", "Start Damage is 130%", g_p30_cost, TEAM2_HUMAN, 1)
 }
 
 public client_connect(id)
@@ -130,6 +132,7 @@ public client_connect(id)
 	g_had_deadlyshot[id] = 0
 	g_can_use_deadlyshot[id] = 0
 	g_using_deadlyshot[id] = 0
+	g_had_bloodyblade[id] = 0
 	g_can_use_bloodyblade[id] = 0
 	g_using_bloodyblade[id] = 0
 	g_had_nvg[id] = 0
@@ -137,17 +140,28 @@ public client_connect(id)
 
 public client_putinserver(id)
 {
+	#if 0
 	if(is_user_bot(id) && !g_register)
 	{
 		g_register = 1
 		set_task(0.1, "do_register", id)
 	}
+	#endif
+}
+public event_restart()
+{
+	for(new i = 0; i <= MAX_PLAYERS;i++)
+	{
+		remove_all_item(i)
+	}
 }
 
+#if 0
 public do_register(id)
 {
 	RegisterHamFromEntity(Ham_TraceAttack, id, "fw_TraceAttack")
 }
+#endif
 
 public zb3_item_selected_post(id, itemid)
 {
@@ -160,7 +174,7 @@ public zb3_item_selected_post(id, itemid)
 		set_double_grenade(id)
 	} else if(itemid == g_p30_damage) {
 		g_had_p30_damage[id] = 1
-		zb3_set_user_level(id, 3)
+		set_p30_damage(id)
 	} else if(itemid == g_sprint) {
 		g_had_sprint[id] = 1
 		set_user_item_sprint(id)
@@ -194,7 +208,9 @@ public client_PostThink(id)
 	
 	if(CurTime - DELAY_TIME > g_hud_delay[id])
 	{
+#if 0
 		sync_hud1_handle(id)
+#endif
 		sync_hud2_handle(id)
 		
 		g_hud_delay[id] = CurTime
@@ -211,6 +227,7 @@ public client_PostThink(id)
 	}
 }
 
+#if 0
 public sync_hud1_handle(id)
 {
 	static Temp_String[128], Temp_String2[128], Temp_String3[128]
@@ -244,6 +261,7 @@ public sync_hud1_handle(id)
 	set_hudmessage(0, 255, 0, 0.015, 0.20, 0, 2.0, 2.0)
 	ShowSyncHudMsg(id, g_sync_hud1, Temp_String3)	
 }
+#endif
 
 public sync_hud2_handle(id)
 {
@@ -291,6 +309,7 @@ public zb3_user_spawned(id)
 	if(!is_user_connected(id))
 		return HAM_IGNORED
 		
+	reset_all_item(id)
 	set_wing_boot(id)
 	set_double_grenade(id)
 	set_user_item_sprint(id)
@@ -314,11 +333,26 @@ public reset_all_item(id)
 	g_sprint_status[id] = 0
 	g_can_use_deadlyshot[id] = 0
 	g_using_deadlyshot[id] = 0	
-	
-	remove_deadlyshot_icon(id)
-	remove_bloodblade_icon(id)
 }
 
+public remove_all_item(id)
+{
+	g_had_wing_boot[id] = 0
+	g_had_double_grenade[id] = 0
+	g_had_p30_damage[id] = 0
+	g_had_sprint[id] = 0
+	g_can_use_sprint[id] = 0
+	g_using_sprint[id] = 0
+	g_sprint_status[id] = 0
+	g_had_deadlyshot[id] = 0
+	g_can_use_deadlyshot[id] = 0
+	g_using_deadlyshot[id] = 0
+	g_had_bloodyblade[id] = 0
+	g_can_use_bloodyblade[id] = 0
+	g_using_bloodyblade[id] = 0
+	g_had_nvg[id] = 0
+	zb3_reset_user_maxlevel(id)
+}
 // =========== Item: Wing Boot
 public set_wing_boot(id)
 {
@@ -372,7 +406,10 @@ public set_user_item_sprint(id)
 		return			
 	if(!g_had_sprint[id])
 		return	
-		
+	
+	if(task_exists(id+TASK_REMOVE_FASTRUN)) remove_task(id+TASK_REMOVE_FASTRUN)
+	if(task_exists(id+TASK_REMOVE_SLOWRUN)) remove_task(id+TASK_REMOVE_SLOWRUN)
+
 	g_can_use_sprint[id] = 1
 	g_using_sprint[id] = 0
 	g_sprint_status[id] = 0
@@ -394,16 +431,6 @@ public do_fastrun(id)
 		g_can_use_sprint[id] = 0
 		g_using_sprint[id] = 1
 		g_sprint_status[id] = 1
-		
-		message_begin(MSG_ONE_UNRELIABLE, g_Msg_ScreenFade, _, id)
-		write_short(0) // duration
-		write_short(0) // hold time
-		write_short(0x0004) // fade type
-		write_byte(255) // r
-		write_byte(255) // g
-		write_byte(255) // b
-		write_byte(100) // alpha
-		message_end()
 		
 		remove_task(id+TASK_REMOVE_FASTRUN)
 		set_task(fastrun_time, "task_remove_fastrun", id+TASK_REMOVE_FASTRUN)
@@ -473,16 +500,6 @@ public task_remove_fastrun(id)
 		remove_task(id+TASK_HUMAN_SOUND)
 		return
 	}	
-
-	message_begin(MSG_ONE_UNRELIABLE, g_Msg_ScreenFade, _, id)
-	write_short(0) // duration
-	write_short(0) // hold time
-	write_short(0x0004) // fade type
-	write_byte(255) // r
-	write_byte(255) // g
-	write_byte(255) // b
-	write_byte(0) // alpha
-	message_end()
 	
 	g_sprint_status[id] = 2
 	
@@ -531,7 +548,8 @@ public set_p30_damage(id)
 	if(!g_had_p30_damage[id])
 		return	
 		
-	zb3_set_user_level(id, 3)
+	zb3_set_user_maxlevel(id, 13)
+	zb3_set_user_level(id, zb3_get_user_level(id) + 3)
 }
 
 // =============== Item: Deadly Shot
@@ -543,11 +561,12 @@ public set_user_deadlyshot(id)
 		return			
 	if(!g_had_deadlyshot[id])
 		return	
-		
+	
+	if(task_exists(id+TASK_REMOVE_DEADLYSHOT)) remove_task(id+TASK_REMOVE_DEADLYSHOT)
+
 	g_can_use_deadlyshot[id] = 1
 	g_using_deadlyshot[id] = 0
 	
-	remove_deadlyshot_icon(id)
 	client_cmd(id, "bind F2 use_deadlyshot")	
 }
 
@@ -565,74 +584,12 @@ public do_deadlyshot(id)
 		g_can_use_deadlyshot[id] = 0
 		g_using_deadlyshot[id] = 1
 		
-		make_deadlyshoot_icon(id)
+		zb3_set_head_attachment(id, g_deadlyshot_icon, g_deadlyshot_time, 1.0, 1.0, 0)
 		emit_sound(id, CHAN_AUTO, sound_fastrun_start, 1.0, ATTN_NORM, 0, PITCH_NORM)
-		
-		if(!zb3_get_user_nvg(id))
-		{
-			message_begin(MSG_ONE_UNRELIABLE, g_Msg_ScreenFade, _, id)
-			write_short(0) // duration
-			write_short(0) // hold time
-			write_short(0x0004) // fade type
-			write_byte(255) // r
-			write_byte(255) // g
-			write_byte(255) // b
-			write_byte(100) // alpha
-			message_end()
-		}
 		
 		remove_task(id+TASK_REMOVE_DEADLYSHOT)
 		set_task(g_deadlyshot_time, "task_remove_headshot", id+TASK_REMOVE_DEADLYSHOT)
 	}
-}
-
-public make_deadlyshoot_icon(id)
-{
-	if(!is_user_connected(id))
-		return
-		
-	remove_deadlyshot_icon(id)
-	set_task(0.1, "make_ds_spr", id+TASK_DEADLYSHOT_ICON)
-}
-
-public make_ds_spr(id)
-{
-	id -= TASK_DEADLYSHOT_ICON
-	
-	if(!is_user_connected(id))
-		return
-	if(!is_user_alive(id))
-		return
-	if(!g_using_deadlyshot[id])
-		return
-		
-	static Float:Origin[3], Float:Add_Point
-	pev(id, pev_origin, Origin)
-	
-	if(!(pev(id, pev_flags) & FL_DUCKING))
-		Add_Point = 25.0
-	else
-		Add_Point = 17.0
-	
-	engfunc(EngFunc_MessageBegin, MSG_PVS, SVC_TEMPENTITY, Origin, 0)
-	write_byte(TE_SPRITE)
-	engfunc(EngFunc_WriteCoord,Origin[0])
-	engfunc(EngFunc_WriteCoord,Origin[1])
-	engfunc(EngFunc_WriteCoord,Origin[2] + Add_Point)
-	write_short(g_deadlyshot_icon_id)
-	write_byte(8)
-	write_byte(255)
-	message_end()	
-		
-	set_task(0.1, "make_ds_spr", id+TASK_DEADLYSHOT_ICON)
-}
-
-public remove_deadlyshot_icon(id)
-{
-	if(!is_user_connected(id))
-		return
-		
-	remove_task(id+TASK_DEADLYSHOT_ICON)
 }
 
 public task_remove_headshot(id)
@@ -645,21 +602,6 @@ public task_remove_headshot(id)
 		return			
 	if(!g_had_deadlyshot[id])
 		return		
-		
-	if(!zb3_get_user_nvg(id))
-	{
-		message_begin(MSG_ONE_UNRELIABLE, g_Msg_ScreenFade, _, id)
-		write_short(0) // duration
-		write_short(0) // hold time
-		write_short(0x0004) // fade type
-		write_byte(255) // r
-		write_byte(255) // g
-		write_byte(255) // b
-		write_byte(0) // alpha
-		message_end()
-	}
-	
-	remove_deadlyshot_icon(id)
 	
 	g_can_use_deadlyshot[id] = 0
 	g_using_deadlyshot[id] = 0
@@ -703,6 +645,8 @@ public set_user_bloodyblade(id)
 	if(!g_had_bloodyblade[id])
 		return	
 		
+	if(task_exists(id+TASK_REMOVE_BLOODYBLADE)) remove_task(id+TASK_REMOVE_BLOODYBLADE)
+
 	g_can_use_bloodyblade[id] = 1
 	g_using_bloodyblade[id] = 0
 	
@@ -722,22 +666,9 @@ public do_bloodyblade(id)
 	{
 		g_can_use_bloodyblade[id] = 0
 		g_using_bloodyblade[id] = 1
-		make_bloodblade_icon(id)
+		zb3_set_head_attachment(id, g_bloodyblade_icon, g_bloodyblade_time, 1.0, 1.0, 0)
 		
 		emit_sound(id, CHAN_AUTO, sound_fastrun_start, 1.0, ATTN_NORM, 0, PITCH_NORM)
-		
-		if(!zb3_get_user_nvg(id))
-		{
-			message_begin(MSG_ONE_UNRELIABLE, g_Msg_ScreenFade, _, id)
-			write_short(0) // duration
-			write_short(0) // hold time
-			write_short(0x0004) // fade type
-			write_byte(255) // r
-			write_byte(255) // g
-			write_byte(255) // b
-			write_byte(100) // alpha
-			message_end()
-		}
 		
 		remove_task(id+TASK_REMOVE_BLOODYBLADE)
 		set_task(g_bloodyblade_time, "task_remove_bloodyblade", id+TASK_REMOVE_BLOODYBLADE)
@@ -755,70 +686,6 @@ public task_remove_bloodyblade(id)
 	if(!g_had_bloodyblade[id])
 		return		
 		
-	if(!zb3_get_user_nvg(id))
-	{
-		message_begin(MSG_ONE_UNRELIABLE, g_Msg_ScreenFade, _, id)
-		write_short(0) // duration
-		write_short(0) // hold time
-		write_short(0x0004) // fade type
-		write_byte(255) // r
-		write_byte(255) // g
-		write_byte(255) // b
-		write_byte(0) // alpha
-		message_end()
-	}
-	
-	remove_bloodblade_icon(id)
 	g_can_use_bloodyblade[id] = 0
 	g_using_bloodyblade[id] = 0
-}
-
-public make_bloodblade_icon(id)
-{
-	if(!is_user_connected(id))
-		return	
-	
-	remove_bloodblade_icon(id)
-	set_task(0.1, "make_bb_spr", id+TASK_BLOODYBLADE_ICON)
-	
-}	
-
-public make_bb_spr(id)
-{
-	id -= TASK_BLOODYBLADE_ICON
-	
-	if(!is_user_connected(id))
-		return
-	if(!is_user_alive(id))
-		return
-	if(!g_using_bloodyblade[id])
-		return
-		
-	static Float:Origin[3], Float:Add_Point
-	pev(id, pev_origin, Origin)
-	
-	if(!(pev(id, pev_flags) & FL_DUCKING))
-		Add_Point = 25.0
-	else
-		Add_Point = 17.0
-	
-	engfunc(EngFunc_MessageBegin, MSG_PVS, SVC_TEMPENTITY, Origin, 0)
-	write_byte(TE_SPRITE)
-	engfunc(EngFunc_WriteCoord,Origin[0])
-	engfunc(EngFunc_WriteCoord,Origin[1])
-	engfunc(EngFunc_WriteCoord,Origin[2] + Add_Point)
-	write_short(g_bloodyblade_icon_id)
-	write_byte(8)
-	write_byte(255)
-	message_end()	
-		
-	set_task(0.1, "make_bb_spr", id+TASK_BLOODYBLADE_ICON)
-}
-
-public remove_bloodblade_icon(id)
-{
-	if(!is_user_connected(id))
-		return
-	
-	remove_task(id+TASK_BLOODYBLADE_ICON)
 }
