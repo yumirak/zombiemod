@@ -2450,7 +2450,7 @@ public set_user_zombie(id, attacker, Origin_Zombie, Respawn)
 	zombie_maxhealth = g_level[id] > 2 ? zombie_level3_health : zombie_level2_health
 	zombie_maxarmor  = g_level[id] > 2 ? zombie_level3_armor  : zombie_level2_armor
 
-	start_zombie_health[ZOMBIE_ORIGIN] = floatround(float(g_firsthuman) / float(g_firstzombie) * 1000.0)
+	start_zombie_health[ZOMBIE_ORIGIN] = clamp( floatround(float(g_firsthuman) / float(g_firstzombie) * 1000.0), zombie_minhealth, zombie_maxhealth)
 	start_zombie_health[ZOMBIE_HOST]   = clamp( floatround( get_user_health(attacker) * 0.5 ), zombie_minhealth, zombie_maxhealth)
 
 	start_zombie_armor[ZOMBIE_ORIGIN]  = zombie_maxarmor
