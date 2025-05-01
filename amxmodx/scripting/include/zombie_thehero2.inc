@@ -126,7 +126,7 @@ native zb3_get_user_gravity(id);
 native zb3_set_user_gravity(id, Float:fGravity);
 native zb3_reset_user_gravity(id);
 
-
+native zb3_set_head_attachment(id, const Sprite[], Float:Time, Float:Scale, Float:FrameRate, TotalFrame)
 // Forwards
 forward zb3_user_infected(id, infector, really_infect); // Call when a guy get infect
 forward zb3_user_change_class(id, oldclass, newclass);
