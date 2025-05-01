@@ -1104,7 +1104,7 @@ public Event_RoundEnd()
 	g_endround = 1
 	
 	// Update Score
-	for(new i = 0; i < g_MaxPlayers; i++)
+	for(new i = 1; i <= g_MaxPlayers; i++)
 	{
 		if(!is_user_connected(i))
 			continue
@@ -1304,18 +1304,26 @@ public cmd_drop(id)
 public Time_Change() 
 {
 	ExecuteForward(g_Forwards[FWD_TIME_CHANGE], g_fwResult)
-	
-	for(new i = 0; i < g_MaxPlayers; i++)
+
+	if(!g_game_playable)
+	{
+		if(GetTotalPlayer(TEAM_ALL, 0) > 1)
+		{
+			g_game_playable = 1
+			TerminateRound(TEAM_START)
+		}
+	}
+
+	for(new i = 1; i <= g_MaxPlayers; i++)
 	{
 		if(!is_user_connected(i))
 			continue
 		if(is_user_bot(i))
 			continue
-			
 		if(is_user_alive(i))
 			show_evolution_hud(i, g_zombie[i])
 			
-		show_score_hud(i)
+		// show_score_hud(i)
 		ExecuteForward(g_Forwards[FWD_SKILL_HUD], g_fwResult, i)
 	}
 }
@@ -1888,7 +1896,7 @@ public UpdateLevelTeamHuman()
 	if(!g_game_playable || g_endround || !g_gamestart)
 		return
 		
-	for (new id = 0; id < g_MaxPlayers; id++)
+	for (new id = 1; id <= g_MaxPlayers; id++)
 		set_task(random_float(0.1, 0.5), "delay_UpdateLevelHuman", id)
 }
 
@@ -2057,14 +2065,12 @@ public gameplay_check()
 	if(!g_game_playable || g_endround || !g_gamestart)
 		return
 		
-	if(GetTotalPlayer(TEAM_ALL, 1) > 1)
+	if(GetTotalPlayer(TEAM_ALL, 1) >= 0)
 	{
 		if(GetTotalPlayer(TEAM_HUMAN, 1) <= 0)
-		{
 			TerminateRound(TEAM_ZOMBIE)
-		} else if(GetTotalPlayer(TEAM_ZOMBIE, 1) <= 0) {
+		else if(GetTotalPlayer(TEAM_ZOMBIE, 1) <= 0)
 			if(!GetRespawningCount()) TerminateRound(TEAM_HUMAN)
-		}
 	}
 }
 
@@ -2185,7 +2191,7 @@ public remove_game_task()
 	remove_task(TASK_COUNTDOWN)
 	remove_task(TASK_ROUND)
 	
-	for(new i = 0; i < g_MaxPlayers; i++)
+	for(new i = 1; i <= g_MaxPlayers; i++)
 	{
 		if(!is_user_connected(i))
 			continue
@@ -2248,7 +2254,8 @@ public start_game_now()
 	g_firsthuman  = Total_Player - Required_Zombie
 	
 	// Get and Set Zombie
-	while(GetTotalPlayer(TEAM_ZOMBIE, 1) < Required_Zombie)
+	// while(GetTotalPlayer(TEAM_ZOMBIE, 1) < Required_Zombie)
+	for(new i = 0; i < Required_Zombie; i++)
 		set_user_zombie(GetRandomAlive(), -1, 1, 0)
 		
 	// Get and Set Hero
@@ -2285,7 +2292,7 @@ public start_game_now()
 	}
 	
 	static Have_Hero
-	for(new i = 0; i < g_MaxPlayers; i++)
+	for(new i = 1; i <= g_MaxPlayers; i++)
 	{
 		if(!is_user_connected(i))
 			continue
@@ -2826,7 +2833,7 @@ public set_newround_configplayer()
 {
 	g_ModelChangeTargetTime = get_gametime() + ROUNDSTART_DELAY
 
-	for(new i = 0; i < g_MaxPlayers; i++)
+	for(new i = 1; i <= g_MaxPlayers; i++)
 	{
 		if(!is_user_connected(i))
 			continue
@@ -3193,21 +3200,28 @@ stock get_random_array(Array:array_name)
 
 stock GetTotalPlayer({PlayerTeams,_}:team, alive)
 {
-	static total, id
+	static total, id, playeralive, playerconnected, TeamName:playerteam;
 	total = 0
 	
 	for (id = 1; id <= g_MaxPlayers; id++)
 	{
-		if(!is_user_connected(id))
+		playerconnected = is_user_connected(id)
+		if(!playerconnected)
 			continue
-		
-		if((alive && is_user_alive(id)) || (!alive && is_user_connected(id)) )
+
+		playeralive = is_user_alive(id)
+		if(alive && !playeralive)
+			continue
+
+		playerteam = fm_cs_get_user_team(id)
+		if(playerteam == TEAM_UNASSIGNED || playerteam == TEAM_SPECTATOR)
+			continue
+
+		switch(team)
 		{
-			if(
-			team == TEAM_ZOMBIE && g_zombie[id] || 
-			team == TEAM_HUMAN && !g_zombie[id] ||
-			team == TEAM_ALL
-			) total++
+			case TEAM_ZOMBIE: if(g_zombie[id]) total++
+			case TEAM_HUMAN: if(!g_zombie[id]) total++
+			default: total++
 		}
 	}
 	
@@ -3218,7 +3232,7 @@ stock GetRespawningCount()
 {
 	static Count; Count = 0
 	
-	for(new i = 0; i < g_MaxPlayers; i++)
+	for(new i = 1; i <= g_MaxPlayers; i++)
 	{
 		if(!is_user_connected(i))
 			continue
